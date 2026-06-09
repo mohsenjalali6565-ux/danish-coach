@@ -49,8 +49,15 @@ export interface SavedFlashcard {
   front: string;
   back: string;
   status: "new" | "hard" | "good";
-  sourceLessonDay: number;
+  sourceLessonDay: number | null;
   createdAt: string;
+}
+
+export interface WritingCorrection {
+  correctedVersion: string;
+  naturalVersion: string;
+  explanationPersian: string;
+  suggestedFlashcards: Flashcard[];
 }
 
 export interface Lesson {

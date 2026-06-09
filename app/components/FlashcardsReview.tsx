@@ -41,7 +41,7 @@ export default function FlashcardsReview() {
   async function loadCards() {
     setLoading(true);
     try {
-      const q = query(collection(db, "flashcards"), orderBy("sourceLessonDay"));
+      const q = query(collection(db, "flashcards"), orderBy("createdAt"));
       const snap = await getDocs(q);
       const cards = snap.docs.map((d) => ({
         id: d.id,
