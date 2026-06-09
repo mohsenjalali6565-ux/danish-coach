@@ -44,6 +44,15 @@ export interface Flashcard {
   type: string;
 }
 
+export interface SavedFlashcard {
+  id: string;
+  front: string;
+  back: string;
+  status: "new" | "hard" | "good";
+  sourceLessonDay: number;
+  createdAt: string;
+}
+
 export interface Lesson {
   day: number;
   title: string;

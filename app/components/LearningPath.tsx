@@ -51,9 +51,17 @@ export default function LearningPath() {
       <div className="mx-auto max-w-2xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-            Danish Learning Path
-          </h1>
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+              Danish Learning Path
+            </h1>
+            <Link
+              href="/flashcards"
+              className="rounded-full px-3 py-1.5 text-xs font-semibold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+            >
+              Flashcards
+            </Link>
+          </div>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             A2+/B1 → B2 · 90-day program toward PD3
           </p>

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import type { CurriculumDay } from "@/app/data/curriculum";
-import type { Lesson, GrammarPoint, VocabularyItem, ReadingQuestion, Flashcard } from "@/app/types/lesson";
+import type { Lesson, GrammarPoint, VocabularyItem, ReadingQuestion } from "@/app/types/lesson";
+import FlashcardsSection from "@/app/components/FlashcardsSection";
 
 const PHASE_COLOR = {
   1: "bg-blue-600",
@@ -87,6 +88,12 @@ export default function DayLesson({ day }: { day: CurriculumDay }) {
             Day {day.dayNumber}
           </span>
           <span className="hidden sm:block text-xs text-zinc-400">{day.level}</span>
+          <Link
+            href="/flashcards"
+            className="text-xs font-medium text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 transition-colors"
+          >
+            Flashcards
+          </Link>
         </div>
       </div>
 
@@ -246,12 +253,13 @@ function LessonContent({ lesson }: { lesson: Lesson }) {
 
       {/* Flashcards */}
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>Suggested Flashcards ({lesson.suggestedFlashcards.length})</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {lesson.suggestedFlashcards.map((fc, i) => (
-            <FlashcardItem key={i} fc={fc} />
-          ))}
-        </div>
+        <h2 className={SECTION_TITLE}>
+          Suggested Flashcards ({lesson.suggestedFlashcards.length})
+        </h2>
+        <FlashcardsSection
+          dayNumber={lesson.day}
+          cards={lesson.suggestedFlashcards}
+        />
       </section>
     </div>
   );
@@ -344,19 +352,3 @@ function ReadingQuestionCard({ q, index }: { q: ReadingQuestion; index: number }
   );
 }
 
-function FlashcardItem({ fc }: { fc: Flashcard }) {
-  const [flipped, setFlipped] = useState(false);
-  return (
-    <button
-      onClick={() => setFlipped((v) => !v)}
-      className="w-full text-left rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-4 py-3 hover:ring-zinc-300 dark:hover:ring-zinc-600 transition-all"
-    >
-      <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-1">{fc.type} · tap to flip</p>
-      {flipped ? (
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">{fc.back}</p>
-      ) : (
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{fc.front}</p>
-      )}
-    </button>
-  );
-}
