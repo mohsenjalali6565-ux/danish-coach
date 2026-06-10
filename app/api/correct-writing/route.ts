@@ -11,9 +11,11 @@ export async function POST(request: NextRequest) {
   }
 
   let text: string;
+  let mode: "correct" | "translate";
   try {
     const body = await request.json();
     text = (body.text ?? "").trim();
+    mode = body.mode === "translate" ? "translate" : "correct";
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
@@ -22,7 +24,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No text provided" }, { status: 400 });
   }
 
-  const systemPrompt = `You are an expert Danish language teacher. Your student is a Persian speaker learning Danish from A2+/B1 toward B2.
+  const sharedSchema = `Return this exact JSON structure:
+{
+  "correctedVersion": "...",
+  "naturalVersion": "...",
+  "explanationPersian": "...",
+  "suggestedFlashcards": [
+    { "front": "...", "back": "...", "type": "sentence|vocabulary|grammar|phrase" }
+  ]
+}`;
+
+  let systemPrompt: string;
+  let userPrompt: string;
+
+  if (mode === "correct") {
+    systemPrompt = `You are an expert Danish language teacher. Your student is a Persian speaker learning Danish from A2+/B1 toward B2.
 
 You must return a single valid JSON object with no markdown, no code fences, no extra text — only the JSON.
 
@@ -32,20 +48,35 @@ LANGUAGE RULES:
 - naturalVersion: how a native Danish speaker would naturally express the same idea — you may rephrase more freely.
 - suggestedFlashcards: 5 to 10 cards. Front is Danish (word, phrase, or corrected pattern). Back is English. Focus on corrections made and useful phrases from the natural version.`;
 
-  const userPrompt = `The student wrote this Danish text:
+    userPrompt = `The student wrote this Danish text:
 """
 ${text}
 """
 
-Return this exact JSON structure:
-{
-  "correctedVersion": "<the corrected text — fix all errors, keep the student's meaning>",
-  "naturalVersion": "<how a native speaker would naturally say the same thing>",
-  "explanationPersian": "<2-3 paragraphs in Persian explaining every error found, the rule behind each correction, and why the natural version is more idiomatic. If no errors, confirm it and give encouragement.>",
-  "suggestedFlashcards": [
-    { "front": "...", "back": "...", "type": "sentence|vocabulary|grammar|phrase" }
-  ]
-}`;
+${sharedSchema}`;
+  } else {
+    systemPrompt = `You are an expert Danish language teacher and translator. Your student is a Persian speaker learning Danish from A2+/B1 toward B2. The student has written their thoughts in Persian or English and wants them translated into Danish.
+
+You must return a single valid JSON object with no markdown, no code fences, no extra text — only the JSON.
+
+LANGUAGE RULES:
+- correctedVersion: a correct, accurate Danish translation of the student's input. Preserve the meaning faithfully. Use B1/B2-level Danish appropriate for the student's level.
+- naturalVersion: a more idiomatic, natural Danish version — how a native speaker would express the same idea. May use more sophisticated vocabulary, sentence structure, or connectors.
+- explanationPersian: MUST be written entirely in Persian (فارسی). Write 2–3 paragraphs covering:
+  1. Key translation choices and why (e.g. word selection, register, structure)
+  2. Important grammar points demonstrated in the translation (e.g. word order, verb forms, noun gender)
+  3. What makes the natural version more idiomatic — specific phrases, connectors, or patterns the student should learn
+- suggestedFlashcards: 5 to 10 cards. Front is Danish (a useful word, phrase, connector, or sentence pattern from the translation). Back is English. Prioritize full phrases and sentence patterns over isolated words.`;
+
+    userPrompt = `The student wrote this text in Persian or English:
+"""
+${text}
+"""
+
+Translate it into Danish and provide the full explanation.
+
+${sharedSchema}`;
+  }
 
   try {
     const completion = await openai.chat.completions.create({

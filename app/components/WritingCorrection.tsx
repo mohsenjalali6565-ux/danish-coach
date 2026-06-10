@@ -6,17 +6,27 @@ import { collection, doc, writeBatch } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import type { WritingCorrection as WCResult, Flashcard } from "@/app/types/lesson";
 
+type Mode = "correct" | "translate";
+
 const SECTION = "mb-6";
 const SECTION_TITLE =
   "mb-2 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500";
 
 export default function WritingCorrection() {
+  const [mode, setMode] = useState<Mode>("correct");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WCResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleCorrect() {
+  function handleModeSwitch(newMode: Mode) {
+    if (newMode === mode) return;
+    setMode(newMode);
+    setResult(null);
+    setError(null);
+  }
+
+  async function handleSubmit() {
     if (!text.trim()) return;
     setLoading(true);
     setError(null);
@@ -25,7 +35,7 @@ export default function WritingCorrection() {
       const res = await fetch("/api/correct-writing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.trim() }),
+        body: JSON.stringify({ text: text.trim(), mode }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -39,6 +49,17 @@ export default function WritingCorrection() {
     }
   }
 
+  const placeholder =
+    mode === "correct"
+      ? "Skriv din danske tekst her…"
+      : "اینجا به فارسی یا انگلیسی بنویسید…";
+
+  const buttonLabel =
+    mode === "correct" ? "Correct My Writing" : "Translate to Danish";
+
+  const loadingLabel =
+    mode === "correct" ? "Correcting…" : "Translating…";
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       {/* Top bar */}
@@ -50,16 +71,42 @@ export default function WritingCorrection() {
           ← Learning Path
         </Link>
         <span className="ml-auto text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-          Writing Correction
+          Writing Assistant Pro
         </span>
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Writing Correction</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Writing Assistant Pro</h1>
           <p className="mt-1 text-sm text-zinc-400 dark:text-zinc-500">
-            Write Danish text and get instant correction and explanation in Persian.
+            {mode === "correct"
+              ? "Write Danish text and get instant correction and explanation in Persian."
+              : "Write your thoughts in Persian or English and get a Danish translation with explanation."}
           </p>
+        </div>
+
+        {/* Mode toggle */}
+        <div className="mb-6 flex gap-2">
+          <button
+            onClick={() => handleModeSwitch("correct")}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              mode === "correct"
+                ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
+                : "bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 ring-1 ring-zinc-200 dark:ring-zinc-800 hover:ring-zinc-400 dark:hover:ring-zinc-600"
+            }`}
+          >
+            Correct my Danish
+          </button>
+          <button
+            onClick={() => handleModeSwitch("translate")}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              mode === "translate"
+                ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
+                : "bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 ring-1 ring-zinc-200 dark:ring-zinc-800 hover:ring-zinc-400 dark:hover:ring-zinc-600"
+            }`}
+          >
+            Translate my thoughts to Danish
+          </button>
         </div>
 
         {/* Input */}
@@ -67,15 +114,16 @@ export default function WritingCorrection() {
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Skriv din danske tekst her…"
+            placeholder={placeholder}
             rows={6}
+            dir={mode === "translate" ? "auto" : "ltr"}
             className="w-full rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 resize-none leading-7"
           />
           {error && (
             <p className="mt-2 text-xs text-red-500">{error}</p>
           )}
           <button
-            onClick={handleCorrect}
+            onClick={handleSubmit}
             disabled={loading || !text.trim()}
             className={`mt-3 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-white bg-zinc-900 dark:bg-zinc-50 dark:text-zinc-900 transition-opacity ${
               loading || !text.trim() ? "opacity-50 cursor-not-allowed" : "hover:opacity-80"
@@ -84,27 +132,29 @@ export default function WritingCorrection() {
             {loading ? (
               <>
                 <span className="animate-spin w-3.5 h-3.5 border-2 border-white/40 border-t-white dark:border-zinc-900/40 dark:border-t-zinc-900 rounded-full inline-block" />
-                Correcting…
+                {loadingLabel}
               </>
             ) : (
-              "Correct My Writing"
+              buttonLabel
             )}
           </button>
         </div>
 
         {/* Result */}
-        {result && <CorrectionResult result={result} />}
+        {result && <CorrectionResult result={result} mode={mode} />}
       </div>
     </div>
   );
 }
 
-function CorrectionResult({ result }: { result: WCResult }) {
+function CorrectionResult({ result, mode }: { result: WCResult; mode: Mode }) {
   return (
     <div>
-      {/* Corrected version */}
+      {/* Corrected / translated version */}
       <div className={SECTION}>
-        <p className={SECTION_TITLE}>Corrected Version</p>
+        <p className={SECTION_TITLE}>
+          {mode === "translate" ? "Danish Translation" : "Corrected Version"}
+        </p>
         <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-200 dark:ring-emerald-800 px-5 py-4">
           <p className="text-sm leading-7 text-emerald-900 dark:text-emerald-100 whitespace-pre-wrap">
             {result.correctedVersion}
