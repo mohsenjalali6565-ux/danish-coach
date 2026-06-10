@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import type { CurriculumDay } from "@/app/data/curriculum";
-import type { Lesson, GrammarPoint, VocabularyItem, ReadingQuestion } from "@/app/types/lesson";
+import type { Lesson, GrammarPoint, VocabularyItem, ReadingQuestion, WritingCorrection, Flashcard } from "@/app/types/lesson";
 import FlashcardsSection from "@/app/components/FlashcardsSection";
 
 const PHASE_COLOR = {
@@ -145,13 +145,13 @@ export default function DayLesson({ day }: { day: CurriculumDay }) {
         )}
 
         {/* Lesson content */}
-        {lesson && <LessonContent lesson={lesson} />}
+        {lesson && <LessonContent lesson={lesson} phase={day.phase} />}
       </div>
     </div>
   );
 }
 
-function LessonContent({ lesson }: { lesson: Lesson }) {
+function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
   return (
     <div>
       {/* Conversation */}
@@ -251,6 +251,9 @@ function LessonContent({ lesson }: { lesson: Lesson }) {
         </div>
       </section>
 
+      {/* Writing Practice */}
+      <LessonWritingPractice lesson={lesson} phase={phase} />
+
       {/* Flashcards */}
       <section className={SECTION}>
         <h2 className={SECTION_TITLE}>
@@ -327,6 +330,286 @@ function VocabCard({ item }: { item: VocabularyItem }) {
     </div>
   );
 }
+
+// ── Local topic templates by phase ────────────────────────────────────────────
+
+const PHASE1_TEMPLATES = [
+  (topic: string) => `Write a short informal message to a friend about ${topic}. Use 5–8 sentences.`,
+  (topic: string) => `Write a brief paragraph describing your personal experience with ${topic}. Use simple past and present tense.`,
+  (topic: string) => `Write a short text (6–8 sentences) giving advice to someone new to ${topic}.`,
+  (topic: string) => `Write a practical note or reminder related to ${topic}. Keep it short and direct.`,
+];
+
+const PHASE2_TEMPLATES = [
+  (topic: string) => `Write a paragraph comparing two different approaches to ${topic}. Use connectors like "mens", "derimod", "på den ene side".`,
+  (topic: string) => `Write an opinion paragraph about ${topic}. State your view clearly and give two reasons. (80–120 words)`,
+  (topic: string) => `Write an advantages and disadvantages paragraph about ${topic}. Use "fordelen er", "ulempen er", "til gengæld".`,
+  (topic: string) => `Write a short article paragraph on ${topic} suitable for a school magazine. Include a clear topic sentence and supporting details. (80–120 words)`,
+];
+
+const PHASE3_TEMPLATES = [
+  (topic: string) => `Write a formal email to a Danish organisation about an issue related to ${topic}. Use formal register, clear structure, and appropriate connectors. (150–200 words)`,
+  (topic: string) => `Write a debate text arguing for or against a position on ${topic}. Use PD3-style argumentation: thesis, arguments, counter-argument, conclusion. (150–200 words)`,
+  (topic: string) => `Write a problem-solution text about a challenge related to ${topic}. Identify the problem, analyse causes, and propose solutions. (150–200 words)`,
+  (topic: string) => `Write an analytical opinion text on ${topic}. Present two contrasting perspectives and give your reasoned conclusion. (150–200 words)`,
+];
+
+function getAlternativeTopics(topic: string, phase: number): string[] {
+  const templates =
+    phase === 1
+      ? PHASE1_TEMPLATES
+      : phase === 2
+      ? PHASE2_TEMPLATES
+      : PHASE3_TEMPLATES;
+  return templates.map((fn) => fn(topic));
+}
+
+// ── Inline writing practice section ───────────────────────────────────────────
+
+function LessonWritingPractice({ lesson, phase }: { lesson: Lesson; phase: number }) {
+  const alternatives = getAlternativeTopics(lesson.topic, phase);
+  const [altIndex, setAltIndex] = useState(0);
+  const [activeTopic, setActiveTopic] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<WritingCorrection | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleUseLesson() {
+    setActiveTopic(lesson.writingTask);
+    setResult(null);
+    setError(null);
+  }
+
+  function handleGenerate() {
+    setActiveTopic(alternatives[altIndex % alternatives.length]);
+    setAltIndex((i) => (i + 1) % alternatives.length);
+    setResult(null);
+    setError(null);
+  }
+
+  async function handleCorrect() {
+    if (!text.trim()) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const res = await fetch("/api/correct-writing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.trim(), mode: "correct" }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      setResult(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className={SECTION}>
+      <h2 className={SECTION_TITLE}>Writing Practice</h2>
+      <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
+
+        {/* Topic area */}
+        <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2">
+            Writing Topic
+          </p>
+          {activeTopic ? (
+            <p className="text-sm leading-6 text-zinc-800 dark:text-zinc-200">{activeTopic}</p>
+          ) : (
+            <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">
+              Choose a topic below to get started.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              onClick={handleUseLesson}
+              className="rounded-full px-4 py-1.5 text-xs font-semibold bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 hover:opacity-80 transition-opacity"
+            >
+              Use This Topic
+            </button>
+            <button
+              onClick={handleGenerate}
+              className="rounded-full px-4 py-1.5 text-xs font-semibold bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 ring-1 ring-zinc-200 dark:ring-zinc-700 hover:ring-zinc-400 dark:hover:ring-zinc-500 transition-all"
+            >
+              Generate New Topic
+            </button>
+          </div>
+        </div>
+
+        {/* Textarea */}
+        <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2">
+            Your Answer
+          </p>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Skriv dit svar på dansk her…"
+            rows={6}
+            className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-800 ring-1 ring-zinc-200 dark:ring-zinc-700 px-4 py-3 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 resize-none leading-7"
+          />
+          {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+          <button
+            onClick={handleCorrect}
+            disabled={loading || !text.trim()}
+            className={`mt-3 inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white bg-zinc-900 dark:bg-zinc-50 dark:text-zinc-900 transition-opacity ${
+              loading || !text.trim() ? "opacity-50 cursor-not-allowed" : "hover:opacity-80"
+            }`}
+          >
+            {loading ? (
+              <>
+                <span className="animate-spin w-3.5 h-3.5 border-2 border-white/40 border-t-white dark:border-zinc-900/40 dark:border-t-zinc-900 rounded-full inline-block" />
+                Correcting…
+              </>
+            ) : (
+              "Correct My Writing"
+            )}
+          </button>
+        </div>
+
+        {/* Result */}
+        {result && <PracticeResult result={result} dayNumber={lesson.day} />}
+      </div>
+    </section>
+  );
+}
+
+function PracticeResult({ result, dayNumber }: { result: WritingCorrection; dayNumber: number }) {
+  const INNER = "px-5 py-4 border-b border-zinc-100 dark:border-zinc-800";
+  const LABEL = "text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2";
+  return (
+    <div>
+      <div className={INNER}>
+        <p className={LABEL}>Corrected Version</p>
+        <p className="text-sm leading-7 text-emerald-900 dark:text-emerald-100 whitespace-pre-wrap bg-emerald-50 dark:bg-emerald-900/20 rounded-xl px-4 py-3">
+          {result.correctedVersion}
+        </p>
+      </div>
+      <div className={INNER}>
+        <p className={LABEL}>Natural Version</p>
+        <p className="text-sm leading-7 text-blue-900 dark:text-blue-100 whitespace-pre-wrap bg-blue-50 dark:bg-blue-900/20 rounded-xl px-4 py-3">
+          {result.naturalVersion}
+        </p>
+      </div>
+      <div className={INNER}>
+        <p className={LABEL}>توضیح</p>
+        <p
+          className="text-sm leading-8 text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap"
+          dir="rtl"
+          lang="fa"
+        >
+          {result.explanationPersian}
+        </p>
+      </div>
+      {result.suggestedFlashcards?.length > 0 && (
+        <div className="px-5 py-4">
+          <p className={LABEL}>
+            Suggested Flashcards ({result.suggestedFlashcards.length})
+          </p>
+          <PracticeFlashcards cards={result.suggestedFlashcards} dayNumber={dayNumber} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PracticeFlashcards({ cards, dayNumber }: { cards: Flashcard[]; dayNumber: number }) {
+  const [flipped, setFlipped] = useState<Record<number, boolean>>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const batch = writeBatch(db);
+      const now = new Date().toISOString();
+      cards.forEach((card) => {
+        const ref = doc(collection(db, "flashcards"));
+        batch.set(ref, {
+          front: card.front,
+          back: card.back,
+          status: "new",
+          sourceLessonDay: dayNumber,
+          createdAt: now,
+        });
+      });
+      await batch.commit();
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+        {cards.map((fc, i) => (
+          <button
+            key={i}
+            onClick={() => setFlipped((prev) => ({ ...prev, [i]: !prev[i] }))}
+            className="w-full text-left rounded-2xl bg-zinc-50 dark:bg-zinc-800 ring-1 ring-zinc-100 dark:ring-zinc-700 px-4 py-3 hover:ring-zinc-300 dark:hover:ring-zinc-600 transition-all"
+          >
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-1">
+              {fc.type} · tap to flip
+            </p>
+            {flipped[i] ? (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">{fc.back}</p>
+            ) : (
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{fc.front}</p>
+            )}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        {saved ? (
+          <>
+            <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+              ✓ {cards.length} flashcards saved to your deck
+            </span>
+            <Link
+              href="/flashcards"
+              className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50 underline underline-offset-2 transition-colors"
+            >
+              Review now →
+            </Link>
+          </>
+        ) : (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 transition-opacity ${
+              saving ? "opacity-60 cursor-not-allowed" : "hover:opacity-80"
+            }`}
+          >
+            {saving ? (
+              <>
+                <span className="animate-spin w-3.5 h-3.5 border-2 border-white/40 border-t-white dark:border-zinc-900/40 dark:border-t-zinc-900 rounded-full inline-block" />
+                Saving…
+              </>
+            ) : (
+              `Add ${cards.length} Suggested Flashcards`
+            )}
+          </button>
+        )}
+        {error && <p className="text-xs text-red-500">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── Reading question card ──────────────────────────────────────────────────────
 
 function ReadingQuestionCard({ q, index }: { q: ReadingQuestion; index: number }) {
   const [open, setOpen] = useState(false);
