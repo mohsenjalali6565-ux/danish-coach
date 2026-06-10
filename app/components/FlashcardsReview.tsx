@@ -16,9 +16,22 @@ import { db } from "@/app/lib/firebase";
 import type { SavedFlashcard } from "@/app/types/lesson";
 import SpeakButton from "@/app/components/SpeakButton";
 
-type Filter = "new" | "hard" | "good" | "all";
+type Filter = "due" | "new" | "hard" | "good" | "all";
 
-const FILTERS: Filter[] = ["new", "hard", "good", "all"];
+const FILTERS: Filter[] = ["due", "new", "hard", "good", "all"];
+
+const FILTER_LABELS: Record<Filter, string> = {
+  due: "Due Today",
+  new: "New",
+  hard: "Hard",
+  good: "Good",
+  all: "All",
+};
+
+function isDue(card: { nextReviewAt?: string }): boolean {
+  if (!card.nextReviewAt) return true;
+  return new Date(card.nextReviewAt) <= new Date();
+}
 
 const STATUS_COLORS: Record<string, string> = {
   new: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
@@ -29,7 +42,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function FlashcardsReview() {
   const [allCards, setAllCards] = useState<SavedFlashcard[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("new");
+  const [filter, setFilter] = useState<Filter>("due");
   const [showAddForm, setShowAddForm] = useState(false);
   const [addedMsg, setAddedMsg] = useState<string | null>(null);
 
@@ -61,14 +74,17 @@ export default function FlashcardsReview() {
 
   // Rebuild queue when filter or allCards change
   useEffect(() => {
-    const filtered =
-      filter === "all" ? [...allCards] : allCards.filter((c) => c.status === filter);
+    let filtered: typeof allCards;
+    if (filter === "all") filtered = [...allCards];
+    else if (filter === "due") filtered = allCards.filter(isDue);
+    else filtered = allCards.filter((c) => c.status === filter);
     setQueue(filtered);
     setCurrentIndex(0);
     setShowAnswer(false);
   }, [filter, allCards]);
 
   const counts = {
+    due: allCards.filter(isDue).length,
     new: allCards.filter((c) => c.status === "new").length,
     hard: allCards.filter((c) => c.status === "hard").length,
     good: allCards.filter((c) => c.status === "good").length,
@@ -192,20 +208,22 @@ export default function FlashcardsReview() {
                     <button
                       key={f}
                       onClick={() => setFilter(f)}
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                         filter === f
                           ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
                           : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                       }`}
                     >
-                      {f} · {counts[f]}
+                      {FILTER_LABELS[f]} · {counts[f]}
                     </button>
                   ))}
                 </div>
 
                 {queue.length === 0 ? (
                   <p className="text-center py-16 text-zinc-400 text-sm">
-                    No {filter === "all" ? "" : filter + " "}cards.
+                    {filter === "due"
+                      ? "No cards due today. Try All to browse your full deck."
+                      : `No ${filter === "all" ? "" : filter + " "}cards.`}
                   </p>
                 ) : done ? (
                   <SessionDone onRestart={() => setCurrentIndex(0)} />
