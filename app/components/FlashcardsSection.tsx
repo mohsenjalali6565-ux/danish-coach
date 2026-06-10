@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import type { Flashcard } from "@/app/types/lesson";
+import SpeakButton from "@/app/components/SpeakButton";
 
 interface Props {
   dayNumber: number;
@@ -144,7 +145,10 @@ function FlipCard({ fc }: { fc: Flashcard }) {
       {flipped ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{fc.back}</p>
       ) : (
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{fc.front}</p>
+        <div className="flex items-start gap-1.5">
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50 flex-1">{fc.front}</p>
+          <SpeakButton text={fc.front} title="Listen" />
+        </div>
       )}
     </button>
   );

@@ -7,6 +7,7 @@ import { db } from "@/app/lib/firebase";
 import type { CurriculumDay } from "@/app/data/curriculum";
 import type { Lesson, GrammarPoint, VocabularyItem, ReadingQuestion, WritingCorrection, Flashcard } from "@/app/types/lesson";
 import FlashcardsSection from "@/app/components/FlashcardsSection";
+import SpeakButton from "@/app/components/SpeakButton";
 
 const PHASE_COLOR = {
   1: "bg-blue-600",
@@ -168,7 +169,10 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
                   {line.speaker}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{line.danish}</p>
+                  <div className="flex items-start gap-1.5">
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 flex-1">{line.danish}</p>
+                    <SpeakButton text={line.danish} title="Listen to Danish" />
+                  </div>
                   <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{line.english}</p>
                   <p
                     className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5"
@@ -200,7 +204,10 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
         <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
           {lesson.keySentences.map((ks, i) => (
             <div key={i} className="px-4 py-3">
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">{ks.danish}</p>
+              <div className="flex items-start gap-1.5">
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50 flex-1">{ks.danish}</p>
+                <SpeakButton text={ks.danish} title="Listen to Danish" />
+              </div>
               <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{ks.english}</p>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5" dir="rtl" lang="fa">
                 {ks.persian}
@@ -225,7 +232,10 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
         <h2 className={SECTION_TITLE}>Reading</h2>
         <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
-            <h3 className="font-semibold text-zinc-900 dark:text-zinc-50">{lesson.reading.title}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 flex-1">{lesson.reading.title}</h3>
+              <SpeakButton text={lesson.reading.text} title="Listen to reading text" />
+            </div>
           </div>
           <div className="px-5 py-4">
             <p className="text-sm leading-7 text-zinc-700 dark:text-zinc-300 whitespace-pre-line">
@@ -321,12 +331,18 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
 function VocabCard({ item }: { item: VocabularyItem }) {
   return (
     <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-4 py-3">
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-baseline mb-1">
-        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{item.danish}</span>
-        <span className="text-xs text-zinc-400">{item.english}</span>
-        <span className="text-xs text-zinc-500" dir="rtl" lang="fa">{item.persian}</span>
+      <div className="flex items-start gap-1.5 mb-1">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-baseline flex-1">
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{item.danish}</span>
+          <span className="text-xs text-zinc-400">{item.english}</span>
+          <span className="text-xs text-zinc-500" dir="rtl" lang="fa">{item.persian}</span>
+        </div>
+        <SpeakButton text={item.danish} title="Listen to word" />
       </div>
-      <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">{item.example}</p>
+      <div className="flex items-start gap-1.5">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic flex-1">{item.example}</p>
+        <SpeakButton text={item.example} title="Listen to example" />
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import type { SavedFlashcard } from "@/app/types/lesson";
+import SpeakButton from "@/app/components/SpeakButton";
 
 type Filter = "new" | "hard" | "good" | "all";
 
@@ -220,9 +221,12 @@ function ReviewCard({
         {/* Front */}
         <div className="px-6 py-8 text-center border-b border-zinc-100 dark:border-zinc-800">
           <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wide">Danish</p>
-          <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 leading-snug">
-            {card.front}
-          </p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 leading-snug">
+              {card.front}
+            </p>
+            <SpeakButton text={card.front} title="Listen" />
+          </div>
         </div>
 
         {/* Back */}
