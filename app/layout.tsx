@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,8 +13,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Danish Daily Coach — PD3 Prep",
-  description: "90-day Danish language program from A2+/B1 to B2 and the PD3 exam.",
+  title: "PD3 Coach",
+  description: "AI Danish Coach for Prøve i Dansk 3 preparation",
+  appleWebApp: {
+    capable: true,
+    title: "PD3 Coach",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({
