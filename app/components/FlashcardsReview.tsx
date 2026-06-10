@@ -217,12 +217,12 @@ function ReviewCard({
       </div>
 
       {/* Card */}
-      <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden mb-5">
+      <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800 overflow-hidden mb-5 shadow-sm">
         {/* Front */}
-        <div className="px-6 py-8 text-center border-b border-zinc-100 dark:border-zinc-800">
-          <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wide">Danish</p>
+        <div className="px-6 py-9 text-center border-b border-zinc-100 dark:border-zinc-800">
+          <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mb-3 uppercase tracking-widest">Danish</p>
           <div className="flex items-center justify-center gap-2">
-            <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 leading-snug">
+            <p className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 leading-snug">
               {card.front}
             </p>
             <SpeakButton text={card.front} title="Listen" />
@@ -231,13 +231,15 @@ function ReviewCard({
 
         {/* Back */}
         {showAnswer ? (
-          <div className="px-6 py-6 text-center">
-            <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wide">Answer</p>
-            <p className="text-base text-zinc-600 dark:text-zinc-300">{card.back}</p>
-            <p className="text-xs text-zinc-400 mt-2">Day {card.sourceLessonDay}</p>
+          <div className="px-6 py-7 text-center bg-zinc-50 dark:bg-zinc-800/50">
+            <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mb-2 uppercase tracking-widest">Answer</p>
+            <p className="text-lg text-zinc-700 dark:text-zinc-200 leading-snug">{card.back}</p>
+            {card.sourceLessonDay && (
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-3">Day {card.sourceLessonDay}</p>
+            )}
           </div>
         ) : (
-          <div className="px-6 py-6 text-center">
+          <div className="px-6 py-7 text-center">
             <button
               onClick={onShow}
               className="rounded-full px-6 py-2.5 text-sm font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
@@ -253,19 +255,19 @@ function ReviewCard({
         <div className="flex gap-3">
           <button
             onClick={onHard}
-            className="flex-1 rounded-2xl py-3 text-sm font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+            className="flex-1 rounded-2xl py-3.5 text-sm font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 ring-1 ring-red-200 dark:ring-red-800 transition-colors"
           >
             Hard
           </button>
           <button
             onClick={onGood}
-            className="flex-1 rounded-2xl py-3 text-sm font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
+            className="flex-1 rounded-2xl py-3.5 text-sm font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 ring-1 ring-emerald-200 dark:ring-emerald-800 transition-colors"
           >
             Good
           </button>
           <button
             onClick={onDelete}
-            className="rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="rounded-2xl px-4 py-3.5 text-sm font-medium text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >
             Delete
           </button>

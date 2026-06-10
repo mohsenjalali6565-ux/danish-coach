@@ -15,9 +15,17 @@ const PHASE_COLOR = {
   3: "bg-emerald-600",
 } as const;
 
-const SECTION = "mb-8";
-const SECTION_TITLE =
-  "mb-3 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500";
+const PHASE_SECTION_BORDER = {
+  1: "border-l-blue-400 dark:border-l-blue-600",
+  2: "border-l-violet-400 dark:border-l-violet-600",
+  3: "border-l-emerald-400 dark:border-l-emerald-600",
+} as const;
+
+const SECTION = "mb-10";
+
+function sectionTitle(phase: number) {
+  return `mb-4 pl-3 border-l-2 ${PHASE_SECTION_BORDER[phase as keyof typeof PHASE_SECTION_BORDER]} text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400`;
+}
 
 export default function DayLesson({ day }: { day: CurriculumDay }) {
   const [lesson, setLesson] = useState<Lesson | null>(null);
@@ -157,7 +165,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
     <div>
       {/* Conversation */}
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>Conversation</h2>
+        <h2 className={sectionTitle(phase)}>Conversation</h2>
         <div className="space-y-3">
           {lesson.conversation.map((line, i) => (
             <div
@@ -170,12 +178,12 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start gap-1.5">
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 flex-1">{line.danish}</p>
+                    <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50 flex-1 leading-snug">{line.danish}</p>
                     <SpeakButton text={line.danish} title="Listen to Danish" />
                   </div>
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{line.english}</p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{line.english}</p>
                   <p
-                    className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5"
+                    className="text-sm text-zinc-500 dark:text-zinc-400 mt-1"
                     dir="rtl"
                     lang="fa"
                   >
@@ -190,7 +198,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Grammar */}
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>Grammar Points</h2>
+        <h2 className={sectionTitle(phase)}>Grammar Points</h2>
         <div className="space-y-4">
           {lesson.grammarPoints.map((gp, i) => (
             <GrammarCard key={i} gp={gp} />
@@ -200,16 +208,16 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Key Sentences */}
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>Key Sentences ({lesson.keySentences.length})</h2>
+        <h2 className={sectionTitle(phase)}>Key Sentences ({lesson.keySentences.length})</h2>
         <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
           {lesson.keySentences.map((ks, i) => (
-            <div key={i} className="px-4 py-3">
+            <div key={i} className="px-4 py-3.5">
               <div className="flex items-start gap-1.5">
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50 flex-1">{ks.danish}</p>
+                <p className="text-base font-medium text-zinc-900 dark:text-zinc-50 flex-1 leading-snug">{ks.danish}</p>
                 <SpeakButton text={ks.danish} title="Listen to Danish" />
               </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{ks.english}</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5" dir="rtl" lang="fa">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{ks.english}</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1" dir="rtl" lang="fa">
                 {ks.persian}
               </p>
             </div>
@@ -219,7 +227,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Vocabulary */}
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>Vocabulary ({lesson.vocabulary.length} words)</h2>
+        <h2 className={sectionTitle(phase)}>Vocabulary ({lesson.vocabulary.length} words)</h2>
         <div className="space-y-2">
           {lesson.vocabulary.map((v, i) => (
             <VocabCard key={i} item={v} />
@@ -229,7 +237,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Reading */}
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>Reading</h2>
+        <h2 className={sectionTitle(phase)}>Reading</h2>
         <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
             <div className="flex items-center gap-2">
@@ -238,12 +246,12 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
             </div>
           </div>
           <div className="px-5 py-4">
-            <p className="text-sm leading-7 text-zinc-700 dark:text-zinc-300 whitespace-pre-line">
+            <p className="text-base leading-8 text-zinc-700 dark:text-zinc-300 whitespace-pre-line">
               {lesson.reading.text}
             </p>
           </div>
           <div className="px-5 py-4 border-t border-zinc-100 dark:border-zinc-800">
-            <p className={SECTION_TITLE}>Questions ({lesson.reading.questions.length})</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Questions ({lesson.reading.questions.length})</p>
             <div className="space-y-4">
               {lesson.reading.questions.map((q, i) => (
                 <ReadingQuestionCard key={i} q={q} index={i} />
@@ -255,9 +263,9 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Writing Task */}
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>Writing Task</h2>
-        <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-5 py-4">
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">{lesson.writingTask}</p>
+        <h2 className={sectionTitle(phase)}>Writing Task</h2>
+        <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-5 py-5">
+          <p className="text-sm leading-7 text-zinc-700 dark:text-zinc-300">{lesson.writingTask}</p>
         </div>
       </section>
 
@@ -266,7 +274,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Flashcards */}
       <section className={SECTION}>
-        <h2 className={SECTION_TITLE}>
+        <h2 className={sectionTitle(phase)}>
           Suggested Flashcards ({lesson.suggestedFlashcards.length})
         </h2>
         <FlashcardsSection
@@ -286,10 +294,10 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
       </div>
       <div className="px-5 py-4 space-y-4">
         {/* Persian explanation */}
-        <div>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-1 uppercase tracking-wide">توضیح</p>
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-4 py-3">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 uppercase tracking-wide">توضیح</p>
           <p
-            className="text-sm leading-7 text-zinc-700 dark:text-zinc-300"
+            className="text-sm text-zinc-700 dark:text-zinc-300"
             dir="rtl"
             lang="fa"
           >
@@ -299,19 +307,19 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
 
         {/* Pattern */}
         <div>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-1 uppercase tracking-wide">Pattern</p>
-          <code className="block text-sm bg-zinc-100 dark:bg-zinc-800 rounded-lg px-3 py-2 text-zinc-800 dark:text-zinc-200 font-mono">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide font-medium">Pattern</p>
+          <code className="block text-sm bg-zinc-100 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-zinc-800 dark:text-zinc-200 font-mono">
             {gp.pattern}
           </code>
         </div>
 
         {/* Examples */}
         <div>
-          <p className="text-xs text-zinc-400 dark:text-zinc-500 mb-1 uppercase tracking-wide">Examples</p>
-          <ul className="space-y-1">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide font-medium">Examples</p>
+          <ul className="space-y-1.5">
             {gp.examples.map((ex, i) => (
-              <li key={i} className="text-sm text-zinc-700 dark:text-zinc-300 flex gap-2">
-                <span className="text-zinc-400">·</span>
+              <li key={i} className="text-sm text-zinc-700 dark:text-zinc-300 flex gap-2 leading-snug">
+                <span className="text-zinc-400 flex-shrink-0 mt-0.5">·</span>
                 {ex}
               </li>
             ))}
@@ -319,9 +327,9 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
         </div>
 
         {/* Common mistake */}
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2">
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">Common Mistake</p>
-          <p className="text-xs text-amber-700 dark:text-amber-300">{gp.commonMistake}</p>
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5">
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Common Mistake</p>
+          <p className="text-sm text-amber-700 dark:text-amber-300">{gp.commonMistake}</p>
         </div>
       </div>
     </div>
@@ -331,16 +339,16 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
 function VocabCard({ item }: { item: VocabularyItem }) {
   return (
     <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-4 py-3">
-      <div className="flex items-start gap-1.5 mb-1">
+      <div className="flex items-start gap-1.5 mb-1.5">
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-baseline flex-1">
-          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{item.danish}</span>
-          <span className="text-xs text-zinc-400">{item.english}</span>
-          <span className="text-xs text-zinc-500" dir="rtl" lang="fa">{item.persian}</span>
+          <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{item.danish}</span>
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">{item.english}</span>
+          <span className="text-sm text-zinc-500 dark:text-zinc-400" dir="rtl" lang="fa">{item.persian}</span>
         </div>
         <SpeakButton text={item.danish} title="Listen to word" />
       </div>
       <div className="flex items-start gap-1.5">
-        <p className="text-xs text-zinc-400 dark:text-zinc-500 italic flex-1">{item.example}</p>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 italic flex-1">{item.example}</p>
         <SpeakButton text={item.example} title="Listen to example" />
       </div>
     </div>
@@ -429,7 +437,7 @@ function LessonWritingPractice({ lesson, phase }: { lesson: Lesson; phase: numbe
 
   return (
     <section className={SECTION}>
-      <h2 className={SECTION_TITLE}>Writing Practice</h2>
+      <h2 className={sectionTitle(phase)}>Writing Practice</h2>
       <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
 
         {/* Topic area */}
@@ -517,13 +525,15 @@ function PracticeResult({ result, dayNumber }: { result: WritingCorrection; dayN
       </div>
       <div className={INNER}>
         <p className={LABEL}>توضیح</p>
-        <p
-          className="text-sm leading-8 text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap"
-          dir="rtl"
-          lang="fa"
-        >
-          {result.explanationPersian}
-        </p>
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-4 py-3">
+          <p
+            className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap"
+            dir="rtl"
+            lang="fa"
+          >
+            {result.explanationPersian}
+          </p>
+        </div>
       </div>
       {result.suggestedFlashcards?.length > 0 && (
         <div className="px-5 py-4">

@@ -8,9 +8,9 @@ import type { WritingCorrection as WCResult, Flashcard } from "@/app/types/lesso
 
 type Mode = "correct" | "translate";
 
-const SECTION = "mb-6";
+const SECTION = "mb-7";
 const SECTION_TITLE =
-  "mb-2 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500";
+  "mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400";
 
 export default function WritingCorrection() {
   const [mode, setMode] = useState<Mode>("correct");
@@ -156,7 +156,7 @@ function CorrectionResult({ result, mode }: { result: WCResult; mode: Mode }) {
           {mode === "translate" ? "Danish Translation" : "Corrected Version"}
         </p>
         <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-200 dark:ring-emerald-800 px-5 py-4">
-          <p className="text-sm leading-7 text-emerald-900 dark:text-emerald-100 whitespace-pre-wrap">
+          <p className="text-base leading-8 text-emerald-900 dark:text-emerald-100 whitespace-pre-wrap">
             {result.correctedVersion}
           </p>
         </div>
@@ -166,7 +166,7 @@ function CorrectionResult({ result, mode }: { result: WCResult; mode: Mode }) {
       <div className={SECTION}>
         <p className={SECTION_TITLE}>Natural Version</p>
         <div className="rounded-2xl bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800 px-5 py-4">
-          <p className="text-sm leading-7 text-blue-900 dark:text-blue-100 whitespace-pre-wrap">
+          <p className="text-base leading-8 text-blue-900 dark:text-blue-100 whitespace-pre-wrap">
             {result.naturalVersion}
           </p>
         </div>
@@ -175,9 +175,9 @@ function CorrectionResult({ result, mode }: { result: WCResult; mode: Mode }) {
       {/* Persian explanation */}
       <div className={SECTION}>
         <p className={SECTION_TITLE}>توضیح</p>
-        <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-5 py-4">
+        <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-5 py-4">
           <p
-            className="text-sm leading-8 text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap"
+            className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap"
             dir="rtl"
             lang="fa"
           >
