@@ -10,6 +10,7 @@ import {
   doc,
   orderBy,
   query,
+  addDoc,
 } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import type { SavedFlashcard } from "@/app/types/lesson";
@@ -29,6 +30,8 @@ export default function FlashcardsReview() {
   const [allCards, setAllCards] = useState<SavedFlashcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("new");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addedMsg, setAddedMsg] = useState<string | null>(null);
 
   // The current review queue — fixed when filter changes
   const [queue, setQueue] = useState<SavedFlashcard[]>([]);
@@ -74,6 +77,13 @@ export default function FlashcardsReview() {
 
   const currentCard = queue[currentIndex] ?? null;
   const done = !currentCard && queue.length > 0;
+
+  function handleCardAdded(card: SavedFlashcard) {
+    setAllCards((prev) => [...prev, card]);
+    setShowAddForm(false);
+    setAddedMsg(card.front);
+    setTimeout(() => setAddedMsg(null), 3000);
+  }
 
   async function handleHard() {
     if (!currentCard) return;
@@ -137,47 +147,187 @@ export default function FlashcardsReview() {
             <span className="animate-spin w-4 h-4 border-2 border-zinc-300 border-t-zinc-600 rounded-full inline-block" />
             Loading flashcards…
           </div>
-        ) : allCards.length === 0 ? (
-          <EmptyState />
         ) : (
           <>
-            {/* Filter tabs */}
-            <div className="flex gap-2 mb-8 flex-wrap">
-              {FILTERS.map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
-                    filter === f
-                      ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
-                      : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                  }`}
-                >
-                  {f} · {counts[f]}
-                </button>
-              ))}
+            {/* Add Flashcard — always visible */}
+            <div className="mb-6">
+              {showAddForm ? (
+                <AddFlashcardForm
+                  onSaved={handleCardAdded}
+                  onCancel={() => setShowAddForm(false)}
+                />
+              ) : (
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setShowAddForm(true)}
+                    className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 ring-1 ring-zinc-200 dark:ring-zinc-700 hover:ring-zinc-400 dark:hover:ring-zinc-500 transition-all"
+                  >
+                    <span className="text-base leading-none">+</span> Add Flashcard
+                  </button>
+                  {addedMsg && (
+                    <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                      ✓ &ldquo;{addedMsg}&rdquo; added
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
-            {queue.length === 0 ? (
-              <p className="text-center py-16 text-zinc-400 text-sm">
-                No {filter === "all" ? "" : filter + " "}cards.
-              </p>
-            ) : done ? (
-              <SessionDone onRestart={() => setCurrentIndex(0)} />
+            {allCards.length === 0 ? (
+              <EmptyState />
             ) : (
-              <ReviewCard
-                card={currentCard!}
-                index={currentIndex}
-                total={queue.length}
-                showAnswer={showAnswer}
-                onShow={() => setShowAnswer(true)}
-                onHard={handleHard}
-                onGood={handleGood}
-                onDelete={handleDelete}
-              />
+              <>
+                {/* Filter tabs */}
+                <div className="flex gap-2 mb-8 flex-wrap">
+                  {FILTERS.map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                        filter === f
+                          ? "bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900"
+                          : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      }`}
+                    >
+                      {f} · {counts[f]}
+                    </button>
+                  ))}
+                </div>
+
+                {queue.length === 0 ? (
+                  <p className="text-center py-16 text-zinc-400 text-sm">
+                    No {filter === "all" ? "" : filter + " "}cards.
+                  </p>
+                ) : done ? (
+                  <SessionDone onRestart={() => setCurrentIndex(0)} />
+                ) : (
+                  <ReviewCard
+                    card={currentCard!}
+                    index={currentIndex}
+                    total={queue.length}
+                    showAnswer={showAnswer}
+                    onShow={() => setShowAnswer(true)}
+                    onHard={handleHard}
+                    onGood={handleGood}
+                    onDelete={handleDelete}
+                  />
+                )}
+              </>
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function AddFlashcardForm({
+  onSaved,
+  onCancel,
+}: {
+  onSaved: (card: SavedFlashcard) => void;
+  onCancel: () => void;
+}) {
+  const [front, setFront] = useState("");
+  const [back, setBack] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [frontError, setFrontError] = useState(false);
+  const [backError, setBackError] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleSubmit() {
+    const f = front.trim();
+    const b = back.trim();
+    setFrontError(!f);
+    setBackError(!b);
+    if (!f || !b) return;
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const now = new Date().toISOString();
+      const ref = await addDoc(collection(db, "flashcards"), {
+        front: f,
+        back: b,
+        status: "new",
+        sourceLessonDay: null,
+        createdAt: now,
+      });
+      onSaved({ id: ref.id, front: f, back: b, status: "new", sourceLessonDay: null, createdAt: now });
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-700 p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Add Flashcard</p>
+        <button
+          onClick={onCancel}
+          className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1.5">
+            Front · Danish
+          </label>
+          <input
+            type="text"
+            value={front}
+            onChange={(e) => { setFront(e.target.value); setFrontError(false); }}
+            placeholder="e.g. at spise"
+            className={`w-full rounded-xl bg-zinc-50 dark:bg-zinc-800 ring-1 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 transition-shadow ${
+              frontError ? "ring-red-400 dark:ring-red-500" : "ring-zinc-200 dark:ring-zinc-700"
+            }`}
+          />
+          {frontError && (
+            <p className="text-xs text-red-500 mt-1">Front field is required.</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1.5">
+            Back · Persian or English
+          </label>
+          <input
+            type="text"
+            value={back}
+            onChange={(e) => { setBack(e.target.value); setBackError(false); }}
+            placeholder="e.g. to eat / خوردن"
+            className={`w-full rounded-xl bg-zinc-50 dark:bg-zinc-800 ring-1 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 transition-shadow ${
+              backError ? "ring-red-400 dark:ring-red-500" : "ring-zinc-200 dark:ring-zinc-700"
+            }`}
+          />
+          {backError && (
+            <p className="text-xs text-red-500 mt-1">Back field is required.</p>
+          )}
+        </div>
+
+        {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className={`w-full rounded-full py-2.5 text-sm font-semibold bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 transition-opacity ${
+            saving ? "opacity-60 cursor-not-allowed" : "hover:opacity-80"
+          }`}
+        >
+          {saving ? (
+            <span className="inline-flex items-center justify-center gap-2">
+              <span className="animate-spin w-3.5 h-3.5 border-2 border-white/40 border-t-white dark:border-zinc-900/40 dark:border-t-zinc-900 rounded-full inline-block" />
+              Saving…
+            </span>
+          ) : (
+            "Save Flashcard"
+          )}
+        </button>
       </div>
     </div>
   );
@@ -282,7 +432,7 @@ function EmptyState() {
     <div className="text-center py-16">
       <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-2">No flashcards yet.</p>
       <p className="text-zinc-400 dark:text-zinc-500 text-xs mb-6">
-        Open a lesson and click "Add Flashcards to My Deck".
+        Use &ldquo;+ Add Flashcard&rdquo; above, or open a lesson to save suggested cards.
       </p>
       <Link
         href="/"
@@ -299,7 +449,7 @@ function SessionDone({ onRestart }: { onRestart: () => void }) {
     <div className="text-center py-16">
       <p className="text-2xl mb-2">✓</p>
       <p className="text-zinc-900 dark:text-zinc-50 font-semibold mb-1">Session complete</p>
-      <p className="text-zinc-400 text-sm mb-6">You've reviewed all cards in this filter.</p>
+      <p className="text-zinc-400 text-sm mb-6">You&apos;ve reviewed all cards in this filter.</p>
       <button
         onClick={onRestart}
         className="rounded-full px-5 py-2.5 text-sm font-semibold bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 hover:opacity-80 transition-opacity"
