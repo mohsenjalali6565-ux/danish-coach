@@ -51,6 +51,11 @@ export interface SavedFlashcard {
   status: "new" | "hard" | "good";
   sourceLessonDay: number | null;
   createdAt: string;
+  reviewCount?: number;
+  correctCount?: number;
+  wrongCount?: number;
+  lastReviewedAt?: string;
+  nextReviewAt?: string;
 }
 
 export interface WritingCorrection {

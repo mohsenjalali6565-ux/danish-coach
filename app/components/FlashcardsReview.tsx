@@ -85,29 +85,38 @@ export default function FlashcardsReview() {
     setTimeout(() => setAddedMsg(null), 3000);
   }
 
-  async function handleHard() {
+  async function handleReview(rating: "again" | "hard" | "good" | "easy") {
     if (!currentCard) return;
-    try {
-      await updateDoc(doc(db, "flashcards", currentCard.id), { status: "hard" });
-      setAllCards((prev) =>
-        prev.map((c) => (c.id === currentCard.id ? { ...c, status: "hard" } : c))
-      );
-      // Remove from queue, index stays → next card slides up
-      setQueue((prev) => prev.filter((_, i) => i !== currentIndex));
-      setShowAnswer(false);
-    } catch {
-      // ignore
-    }
-  }
+    const now = new Date().toISOString();
+    const daysMap = { again: 0, hard: 1, good: 3, easy: 7 };
+    const next = new Date();
+    next.setDate(next.getDate() + daysMap[rating]);
 
-  async function handleGood() {
-    if (!currentCard) return;
+    const isCorrect = rating !== "again";
+    const updates = {
+      status: (rating === "good" || rating === "easy" ? "good" : "hard") as "hard" | "good",
+      reviewCount: (currentCard.reviewCount ?? 0) + 1,
+      correctCount: (currentCard.correctCount ?? 0) + (isCorrect ? 1 : 0),
+      wrongCount: (currentCard.wrongCount ?? 0) + (isCorrect ? 0 : 1),
+      lastReviewedAt: now,
+      nextReviewAt: next.toISOString(),
+    };
+
     try {
-      await updateDoc(doc(db, "flashcards", currentCard.id), { status: "good" });
+      await updateDoc(doc(db, "flashcards", currentCard.id), updates);
+      const updatedCard = { ...currentCard, ...updates };
       setAllCards((prev) =>
-        prev.map((c) => (c.id === currentCard.id ? { ...c, status: "good" } : c))
+        prev.map((c) => (c.id === currentCard.id ? updatedCard : c))
       );
-      setQueue((prev) => prev.filter((_, i) => i !== currentIndex));
+      if (rating === "again") {
+        // Remove from current position, re-append to end so it repeats in this session
+        setQueue((prev) => {
+          const without = prev.filter((_, i) => i !== currentIndex);
+          return [...without, updatedCard];
+        });
+      } else {
+        setQueue((prev) => prev.filter((_, i) => i !== currentIndex));
+      }
       setShowAnswer(false);
     } catch {
       // ignore
@@ -207,8 +216,7 @@ export default function FlashcardsReview() {
                     total={queue.length}
                     showAnswer={showAnswer}
                     onShow={() => setShowAnswer(true)}
-                    onHard={handleHard}
-                    onGood={handleGood}
+                    onReview={handleReview}
                     onDelete={handleDelete}
                   />
                 )}
@@ -333,14 +341,44 @@ function AddFlashcardForm({
   );
 }
 
+const REVIEW_BUTTONS = [
+  {
+    rating: "again",
+    label: "Again",
+    interval: "Now",
+    className:
+      "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 ring-1 ring-rose-200 dark:ring-rose-800",
+  },
+  {
+    rating: "hard",
+    label: "Hard",
+    interval: "1 day",
+    className:
+      "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 ring-1 ring-amber-200 dark:ring-amber-800",
+  },
+  {
+    rating: "good",
+    label: "Good",
+    interval: "3 days",
+    className:
+      "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 ring-1 ring-emerald-200 dark:ring-emerald-800",
+  },
+  {
+    rating: "easy",
+    label: "Easy",
+    interval: "7 days",
+    className:
+      "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/50 ring-1 ring-sky-200 dark:ring-sky-800",
+  },
+] as const;
+
 function ReviewCard({
   card,
   index,
   total,
   showAnswer,
   onShow,
-  onHard,
-  onGood,
+  onReview,
   onDelete,
 }: {
   card: SavedFlashcard;
@@ -348,8 +386,7 @@ function ReviewCard({
   total: number;
   showAnswer: boolean;
   onShow: () => void;
-  onHard: () => void;
-  onGood: () => void;
+  onReview: (rating: "again" | "hard" | "good" | "easy") => void;
   onDelete: () => void;
 }) {
   return (
@@ -402,25 +439,27 @@ function ReviewCard({
 
       {/* Action buttons */}
       {showAnswer && (
-        <div className="flex gap-3">
-          <button
-            onClick={onHard}
-            className="flex-1 rounded-2xl py-3.5 text-sm font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 ring-1 ring-red-200 dark:ring-red-800 transition-colors"
-          >
-            Hard
-          </button>
-          <button
-            onClick={onGood}
-            className="flex-1 rounded-2xl py-3.5 text-sm font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 ring-1 ring-emerald-200 dark:ring-emerald-800 transition-colors"
-          >
-            Good
-          </button>
-          <button
-            onClick={onDelete}
-            className="rounded-2xl px-4 py-3.5 text-sm font-medium text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            Delete
-          </button>
+        <div>
+          <div className="grid grid-cols-4 gap-2 mb-3">
+            {REVIEW_BUTTONS.map(({ rating, label, interval, className }) => (
+              <button
+                key={rating}
+                onClick={() => onReview(rating)}
+                className={`rounded-2xl py-3 flex flex-col items-center gap-0.5 transition-colors ${className}`}
+              >
+                <span className="text-sm font-semibold">{label}</span>
+                <span className="text-xs opacity-70">{interval}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <button
+              onClick={onDelete}
+              className="rounded-xl px-4 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       )}
     </div>
