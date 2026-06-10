@@ -23,8 +23,14 @@ const PHASE_SECTION_BORDER = {
 
 const SECTION = "mb-10";
 
-function sectionTitle(phase: number) {
-  return `mb-4 pl-3 border-l-2 ${PHASE_SECTION_BORDER[phase as keyof typeof PHASE_SECTION_BORDER]} text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400`;
+function sectionTitle(phase: number, icon: string, label: string) {
+  const border = PHASE_SECTION_BORDER[phase as keyof typeof PHASE_SECTION_BORDER];
+  return (
+    <h2 className={`mb-4 pl-3 border-l-2 ${border} flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400`}>
+      <span className="text-sm leading-none">{icon}</span>
+      {label}
+    </h2>
+  );
 }
 
 export default function DayLesson({ day }: { day: CurriculumDay }) {
@@ -165,15 +171,23 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
     <div>
       {/* Conversation */}
       <section className={SECTION}>
-        <h2 className={sectionTitle(phase)}>Conversation</h2>
-        <div className="space-y-3">
+        {sectionTitle(phase, "💬", "Conversation")}
+        <div className="space-y-2">
           {lesson.conversation.map((line, i) => (
             <div
               key={i}
-              className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-4 py-3"
+              className={`rounded-2xl ring-1 shadow-sm px-4 py-3 ${
+                line.speaker === "A"
+                  ? "bg-sky-50 ring-sky-200 dark:bg-sky-900/20 dark:ring-sky-800"
+                  : "bg-white ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-700"
+              }`}
             >
               <div className="flex gap-3 items-start">
-                <span className="flex-shrink-0 mt-0.5 w-6 h-6 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-600 dark:text-zinc-400">
+                <span className={`flex-shrink-0 mt-0.5 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                  line.speaker === "A"
+                    ? "bg-sky-200 text-sky-800 dark:bg-sky-800 dark:text-sky-200"
+                    : "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                }`}>
                   {line.speaker}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -198,7 +212,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Grammar */}
       <section className={SECTION}>
-        <h2 className={sectionTitle(phase)}>Grammar Points</h2>
+        {sectionTitle(phase, "📖", "Grammar Points")}
         <div className="space-y-4">
           {lesson.grammarPoints.map((gp, i) => (
             <GrammarCard key={i} gp={gp} />
@@ -208,8 +222,8 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Key Sentences */}
       <section className={SECTION}>
-        <h2 className={sectionTitle(phase)}>Key Sentences ({lesson.keySentences.length})</h2>
-        <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
+        {sectionTitle(phase, "🔑", `Key Sentences (${lesson.keySentences.length})`)}
+        <div className="rounded-2xl bg-violet-50 dark:bg-violet-900/10 ring-1 ring-violet-200 dark:ring-violet-800 divide-y divide-violet-100 dark:divide-violet-900 overflow-hidden shadow-sm">
           {lesson.keySentences.map((ks, i) => (
             <div key={i} className="px-4 py-3.5">
               <div className="flex items-start gap-1.5">
@@ -227,7 +241,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Vocabulary */}
       <section className={SECTION}>
-        <h2 className={sectionTitle(phase)}>Vocabulary ({lesson.vocabulary.length} words)</h2>
+        {sectionTitle(phase, "🧩", `Vocabulary (${lesson.vocabulary.length} words)`)}
         <div className="space-y-2">
           {lesson.vocabulary.map((v, i) => (
             <VocabCard key={i} item={v} />
@@ -237,20 +251,20 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Reading */}
       <section className={SECTION}>
-        <h2 className={sectionTitle(phase)}>Reading</h2>
-        <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+        {sectionTitle(phase, "📚", "Reading")}
+        <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-700 overflow-hidden shadow-sm">
+          <div className="px-5 py-4 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-zinc-900 dark:text-zinc-50 flex-1">{lesson.reading.title}</h3>
               <SpeakButton text={lesson.reading.text} title="Listen to reading text" />
             </div>
           </div>
-          <div className="px-5 py-4">
+          <div className="px-5 py-5 bg-stone-50 dark:bg-zinc-900">
             <p className="text-base leading-8 text-zinc-700 dark:text-zinc-300 whitespace-pre-line">
               {lesson.reading.text}
             </p>
           </div>
-          <div className="px-5 py-4 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Questions ({lesson.reading.questions.length})</p>
             <div className="space-y-4">
               {lesson.reading.questions.map((q, i) => (
@@ -263,8 +277,8 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Writing Task */}
       <section className={SECTION}>
-        <h2 className={sectionTitle(phase)}>Writing Task</h2>
-        <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-5 py-5">
+        {sectionTitle(phase, "📝", "Writing Task")}
+        <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/30 ring-1 ring-amber-200 dark:ring-amber-800 px-5 py-5 shadow-sm">
           <p className="text-sm leading-7 text-zinc-700 dark:text-zinc-300">{lesson.writingTask}</p>
         </div>
       </section>
@@ -274,9 +288,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
       {/* Flashcards */}
       <section className={SECTION}>
-        <h2 className={sectionTitle(phase)}>
-          Suggested Flashcards ({lesson.suggestedFlashcards.length})
-        </h2>
+        {sectionTitle(phase, "🃏", `Suggested Flashcards (${lesson.suggestedFlashcards.length})`)}
         <FlashcardsSection
           dayNumber={lesson.day}
           cards={lesson.suggestedFlashcards}
@@ -288,8 +300,8 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
 
 function GrammarCard({ gp }: { gp: GrammarPoint }) {
   return (
-    <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
-      <div className="bg-zinc-50 dark:bg-zinc-800/60 px-5 py-3 border-b border-zinc-100 dark:border-zinc-800">
+    <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-700 overflow-hidden shadow-sm">
+      <div className="bg-zinc-100 dark:bg-zinc-800/60 px-5 py-3 border-b border-zinc-200 dark:border-zinc-700">
         <p className="font-semibold text-sm text-zinc-900 dark:text-zinc-50">{gp.title}</p>
       </div>
       <div className="px-5 py-4 space-y-4">
@@ -338,7 +350,7 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
 
 function VocabCard({ item }: { item: VocabularyItem }) {
   return (
-    <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 px-4 py-3">
+    <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-700 shadow-sm px-4 py-3">
       <div className="flex items-start gap-1.5 mb-1.5">
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-baseline flex-1">
           <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{item.danish}</span>
@@ -437,11 +449,11 @@ function LessonWritingPractice({ lesson, phase }: { lesson: Lesson; phase: numbe
 
   return (
     <section className={SECTION}>
-      <h2 className={sectionTitle(phase)}>Writing Practice</h2>
-      <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
+      {sectionTitle(phase, "✍️", "Writing Practice")}
+      <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-700 overflow-hidden shadow-sm">
 
         {/* Topic area */}
-        <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2">
             Writing Topic
           </p>
@@ -469,7 +481,7 @@ function LessonWritingPractice({ lesson, phase }: { lesson: Lesson; phase: numbe
         </div>
 
         {/* Textarea */}
-        <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2">
             Your Answer
           </p>
@@ -507,7 +519,7 @@ function LessonWritingPractice({ lesson, phase }: { lesson: Lesson; phase: numbe
 }
 
 function PracticeResult({ result, dayNumber }: { result: WritingCorrection; dayNumber: number }) {
-  const INNER = "px-5 py-4 border-b border-zinc-100 dark:border-zinc-800";
+  const INNER = "px-5 py-4 border-b border-zinc-200 dark:border-zinc-700";
   const LABEL = "text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-2";
   return (
     <div>
