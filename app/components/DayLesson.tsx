@@ -7,6 +7,7 @@ import { db } from "@/app/lib/firebase";
 import type { CurriculumDay } from "@/app/data/curriculum";
 import type { Lesson, GrammarPoint, VocabularyItem, ReadingQuestion, WritingCorrection, Flashcard, ExamQuestion } from "@/app/types/lesson";
 import SpeakButton from "@/app/components/SpeakButton";
+import TextSelectionFlashcard from "@/app/components/TextSelectionFlashcard";
 
 const PHASE_COLOR = {
   1: "bg-blue-600",
@@ -161,6 +162,9 @@ export default function DayLesson({ day }: { day: CurriculumDay }) {
         {/* Lesson content */}
         {lesson && <LessonContent lesson={lesson} phase={day.phase} />}
       </div>
+
+      {/* Text-selection flashcard — fixed overlay, active on this lesson page */}
+      <TextSelectionFlashcard dayNumber={day.dayNumber} />
     </div>
   );
 }
