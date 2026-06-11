@@ -111,11 +111,11 @@ export default function TextSelectionFlashcard({ dayNumber }: { dayNumber?: numb
 
   return (
     <>
-      {/* ── Floating pill ── shown while text is selected, before editing */}
+      {/* ── Floating pill (desktop ≥640px) ── positioned near the selection */}
       {!editing && popup && (
         <div
           ref={pillRef}
-          className="fixed z-50 select-none pointer-events-auto"
+          className="hidden sm:block fixed z-50 select-none pointer-events-auto"
           style={{
             left: popup.x,
             top: popup.y,
@@ -140,6 +140,32 @@ export default function TextSelectionFlashcard({ dayNumber }: { dayNumber?: numb
               onMouseDown={(e) => e.preventDefault()}
               onClick={dismiss}
               className="text-white/40 dark:text-zinc-400 hover:text-white dark:hover:text-zinc-900 transition-colors w-6 h-6 flex items-center justify-center text-lg leading-none ml-0.5"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Fixed action bar (mobile <640px) ── clear of native UI panels */}
+      {!editing && popup && (
+        <div className="sm:hidden fixed left-4 right-4 bottom-[90px] z-50 select-none pointer-events-auto">
+          <div className="flex items-center gap-3 bg-zinc-900 dark:bg-zinc-50 rounded-2xl px-4 py-3 shadow-xl">
+            <span className="text-sm text-white/60 dark:text-zinc-500 truncate flex-1 min-w-0">
+              {popup.text}
+            </span>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleAdd}
+              className="flex-shrink-0 flex items-center gap-1.5 text-sm font-semibold text-white dark:text-zinc-900 bg-white/20 dark:bg-black/10 hover:bg-white/30 dark:hover:bg-black/20 rounded-xl px-3 py-1.5 transition-colors"
+            >
+              📚 Add Flashcard
+            </button>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={dismiss}
+              className="flex-shrink-0 text-white/40 dark:text-zinc-400 hover:text-white dark:hover:text-zinc-900 transition-colors w-7 h-7 flex items-center justify-center text-lg leading-none"
               aria-label="Dismiss"
             >
               ×
