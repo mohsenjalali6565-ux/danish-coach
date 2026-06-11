@@ -5,7 +5,7 @@ import Link from "next/link";
 import { collection, doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import type { CurriculumDay } from "@/app/data/curriculum";
-import type { Lesson, GrammarPoint, VocabularyItem, ReadingQuestion, WritingCorrection, Flashcard } from "@/app/types/lesson";
+import type { Lesson, GrammarPoint, VocabularyItem, ReadingQuestion, WritingCorrection, Flashcard, ExamQuestion } from "@/app/types/lesson";
 import FlashcardsSection from "@/app/components/FlashcardsSection";
 import SpeakButton from "@/app/components/SpeakButton";
 
@@ -295,6 +295,9 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
         </div>
       </section>
 
+      {/* PD3 Reading Exam Practice */}
+      <ReadingExamPracticeSection lesson={lesson} phase={phase} />
+
       {/* Writing Task */}
       <section className={SECTION}>
         {sectionTitle(phase, "📝", "Writing Task")}
@@ -327,7 +330,7 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
       <div className="px-5 py-4 space-y-4">
         {/* Persian explanation */}
         <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-4 py-3">
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 uppercase tracking-wide">توضیح</p>
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 uppercase tracking-wide" dir="rtl" lang="fa">توضیح</p>
           <p
             className="text-sm text-zinc-700 dark:text-zinc-300"
             dir="rtl"
@@ -556,7 +559,7 @@ function PracticeResult({ result, dayNumber }: { result: WritingCorrection; dayN
         </p>
       </div>
       <div className={INNER}>
-        <p className={LABEL}>توضیح</p>
+        <p className={LABEL} dir="rtl" lang="fa">توضیح</p>
         <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-4 py-3">
           <p
             className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap"
@@ -746,5 +749,187 @@ function ReadingQuestionCard({ q, index }: { q: ReadingQuestion; index: number }
       )}
     </div>
   );
+}
+
+// ── PD3 Reading Exam Practice ──────────────────────────────────────────────────
+
+function ReadingExamPracticeSection({ lesson, phase }: { lesson: Lesson; phase: number }) {
+  if (!lesson.readingExamPractice) return null;
+  const { title, questions } = lesson.readingExamPractice;
+  return (
+    <section className={SECTION}>
+      {sectionTitle(phase, "🧪", "PD3 Reading Exam Practice")}
+      <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-700 overflow-hidden shadow-sm">
+        <div className="px-5 py-4 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
+          <p className="font-semibold text-zinc-800 dark:text-zinc-100">{title}</p>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          {questions.map((q, i) => (
+            <ExamQuestionCard key={i} q={q} index={i} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ExamQuestionCard({ q, index }: { q: ExamQuestion; index: number }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <div className="rounded-xl ring-1 ring-zinc-200 dark:ring-zinc-700 overflow-hidden">
+      <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-xs font-bold text-zinc-400">{index + 1}.</span>
+          <span className="inline-block text-xs rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 font-medium">
+            {q.type}
+          </span>
+        </div>
+        <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{q.instruction}</p>
+      </div>
+      <div className="px-4 py-3">
+        <ExamQuestionBody q={q} />
+        {!revealed ? (
+          <button
+            onClick={() => setRevealed(true)}
+            className="mt-3 rounded-full px-4 py-1.5 text-xs font-semibold bg-indigo-600 text-white hover:opacity-90 transition-opacity"
+          >
+            Show Answer
+          </button>
+        ) : (
+          <div className="mt-3 space-y-2">
+            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2.5">
+              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1 uppercase tracking-wide">
+                Answer
+              </p>
+              <p className="text-sm text-emerald-900 dark:text-emerald-100">{q.correctAnswer}</p>
+            </div>
+            {q.explanationPersian && (
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/60 px-3 py-2.5">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1 uppercase tracking-wide" dir="rtl" lang="fa">
+                  توضیح
+                </p>
+                <p
+                  className="text-sm text-zinc-700 dark:text-zinc-300"
+                  dir="rtl"
+                  lang="fa"
+                >
+                  {q.explanationPersian}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ExamQuestionBody({ q }: { q: ExamQuestion }) {
+  switch (q.type) {
+    case "short_answer":
+    case "true_false":
+    case "inference":
+      return q.question ? (
+        <p className="text-sm text-zinc-700 dark:text-zinc-300">{q.question}</p>
+      ) : null;
+
+    case "multiple_choice":
+      return (
+        <div>
+          {q.question && (
+            <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-2">{q.question}</p>
+          )}
+          <div className="space-y-1.5">
+            {q.options?.map((opt, i) => (
+              <div
+                key={i}
+                className="rounded-lg bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300"
+              >
+                {opt}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "matching":
+      return (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-1">Column A</p>
+            {q.items?.map((pair, i) => (
+              <div
+                key={i}
+                className="rounded-lg bg-sky-50 dark:bg-sky-900/20 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300"
+              >
+                {pair.id}. {pair.left}
+              </div>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-1">Column B</p>
+            {q.items?.map((pair, i) => (
+              <div
+                key={i}
+                className="rounded-lg bg-violet-50 dark:bg-violet-900/20 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300"
+              >
+                {pair.right}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "cloze":
+      return (
+        <div>
+          {q.textWithBlanks && (
+            <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-7">{q.textWithBlanks}</p>
+          )}
+          {q.options && q.options.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <p className="text-xs text-zinc-400">Words:</p>
+              {q.options.map((opt, i) => (
+                <span
+                  key={i}
+                  className="rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 text-sm font-mono"
+                >
+                  {opt}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+
+    case "gapped_text":
+      return (
+        <div>
+          {q.gappedParagraph && (
+            <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-7 mb-3">{q.gappedParagraph}</p>
+          )}
+          {q.missingSentenceOptions && q.missingSentenceOptions.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1">
+                Choose the missing sentence:
+              </p>
+              {q.missingSentenceOptions.map((opt, i) => (
+                <div
+                  key={i}
+                  className="rounded-lg bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300"
+                >
+                  {opt}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+
+    default:
+      return q.question ? (
+        <p className="text-sm text-zinc-700 dark:text-zinc-300">{q.question}</p>
+      ) : null;
+  }
 }
 

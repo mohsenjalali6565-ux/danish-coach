@@ -161,6 +161,7 @@ VOCABULARY — Must:
 READING — ${phaseReadingGuidance}
 - The text type must be: ${day.textType ?? "appropriate to the phase"}.
 - The text must match the reading focus: ${day.readingFocus ?? "general comprehension"}.
+- The reading text MUST be at minimum ${readingWords.split(" ")[0]} words. Do not produce a shorter text regardless of topic simplicity — count the words and expand if needed.
 - Reading questions must STRICTLY match the required question types: ${day.questionTypes?.join(", ") ?? "comprehension, inference, vocabulary"}.
   - "short answer" or "short_answer": require a complete, full-sentence answer based directly on the text.
   - "true/false": state a claim clearly; include "True" or "False" + a brief justification quoting or referencing the text in the "answer" field.
@@ -203,6 +204,21 @@ EXAM STRATEGY — Must produce a dedicated examStrategy field:
   4. PD3 exam techniques for this day's text type: ${day.textType ?? "reading and writing task"}.
 - This is a PD3 exam skills guide — focus on strategy and technique, not grammar rules.
 
+READING EXAM PRACTICE — Must produce a readingExamPractice field:
+- Generate exactly 3–5 questions. All questions must be based on the reading text in "reading.text".
+- Cover the Required Question Types for this day: ${day.questionTypes?.join(", ") ?? "short_answer, true_false, multiple_choice"}.
+- If more than 5 types are listed, prioritise: gapped_text, cloze, matching, inference, multiple_choice.
+- Every question must have: type, instruction, correctAnswer (never empty), and explanationPersian (in Persian, minimum 2 sentences explaining why the answer is correct).
+- Per-type required fields — follow exactly:
+  - short_answer: { type, instruction, question, correctAnswer, explanationPersian }
+  - true_false: { type, instruction, question (a clear declarative statement to evaluate), correctAnswer ("true" or "false"), explanationPersian }
+  - multiple_choice: { type, instruction, question, options (array of exactly 4 strings, each prefixed "A. "/"B. "/"C. "/"D. "), correctAnswer (single letter, e.g. "B"), explanationPersian }
+  - matching: { type, instruction, items (array of 3–5 objects: { id, left, right }), correctAnswer (e.g. "1-C, 2-A, 3-B"), explanationPersian } — do NOT include a "question" field for matching
+  - cloze: { type, instruction, textWithBlanks (sentence or short paragraph with ___ for each blank), options (array of the correct words), correctAnswer (words in order, comma-separated), explanationPersian } — do NOT include "gappedParagraph"
+  - gapped_text: { type, instruction, gappedParagraph (a paragraph with [___] where the missing sentence belongs), missingSentenceOptions (array of exactly 4 strings, each prefixed "A. "/"B. "/"C. "/"D. "), correctAnswer (single letter, e.g. "A"), explanationPersian } — do NOT include "textWithBlanks"
+  - inference: { type, instruction, question, correctAnswer (inferred meaning plus reference to text evidence), explanationPersian }
+- The title must be in Danish (e.g. "PD3 Læseforståelse — Eksamensøvelse").
+
 Return this exact JSON structure (fill every field with real content):
 {
   "day": ${day.dayNumber},
@@ -237,6 +253,23 @@ Return this exact JSON structure (fill every field with real content):
   },
   "writingTask": "<full structured writing instruction as described above>",
   "examStrategy": "<full PD3 exam strategy guide in Persian — minimum 150 words — covering: (1) step-by-step technique for each required question type, (2) how to structure the writing task, (3) PD3 exam tips for this day's text type>",
+  "readingExamPractice": {
+    "title": "<Danish title, e.g. 'PD3 Læseforståelse — Eksamensøvelse'>",
+    "questions": [
+      {
+        "type": "short_answer|true_false|multiple_choice|matching|cloze|gapped_text|inference",
+        "instruction": "<task instruction for the student>",
+        "question": "<question or statement text — omit for matching>",
+        "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+        "items": [{ "id": "1", "left": "...", "right": "..." }],
+        "textWithBlanks": "<sentence or paragraph with ___ markers — cloze only>",
+        "gappedParagraph": "<paragraph with [___] marker — gapped_text only>",
+        "missingSentenceOptions": ["A. ...", "B. ...", "C. ...", "D. ..."],
+        "correctAnswer": "<the correct answer>",
+        "explanationPersian": "<explanation in Persian: why this answer is correct, minimum 2 sentences>"
+      }
+    ]
+  },
   "suggestedFlashcards": [
     { "front": "...", "back": "...", "type": "vocabulary|sentence|grammar|phrase" }
   ]
@@ -251,6 +284,12 @@ FINAL CHECK before returning — verify these counts in your output:
 - reading questions match the required types: ${day.questionTypes?.join(", ") ?? "as specified"}
 - writingTask field contains the full structured instruction including text type, word count, and required connectors
 - examStrategy is at least 150 words and written entirely in Persian
+- readingExamPractice exists and has 3–5 questions
+- every readingExamPractice question has a non-empty correctAnswer and a non-empty explanationPersian
+- matching questions have an "items" array (not a "question" string)
+- cloze questions have a "textWithBlanks" field (not "gappedParagraph")
+- gapped_text questions have both "gappedParagraph" and "missingSentenceOptions" (exactly 4 options)
+- multiple_choice questions have an "options" array with exactly 4 items
 - at least 5 keySentences use the sentence patterns
 - at least 3 suggestedFlashcards cover target connectors
 If any count or requirement is not met, fix it before returning.`;

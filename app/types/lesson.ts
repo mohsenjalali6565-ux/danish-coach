@@ -39,6 +39,39 @@ export interface Reading {
   questions: ReadingQuestion[];
 }
 
+export type ExamQuestionType =
+  | "short_answer"
+  | "true_false"
+  | "matching"
+  | "multiple_choice"
+  | "cloze"
+  | "gapped_text"
+  | "inference";
+
+export interface MatchingPair {
+  id: string;
+  left: string;
+  right: string;
+}
+
+export interface ExamQuestion {
+  type: ExamQuestionType;
+  instruction: string;
+  correctAnswer: string;
+  explanationPersian: string;
+  question?: string;
+  options?: string[];
+  items?: MatchingPair[];
+  textWithBlanks?: string;
+  missingSentenceOptions?: string[];
+  gappedParagraph?: string;
+}
+
+export interface ReadingExamPractice {
+  title: string;
+  questions: ExamQuestion[];
+}
+
 export interface Flashcard {
   front: string;
   back: string;
@@ -79,4 +112,5 @@ export interface Lesson {
   writingTask: string;
   suggestedFlashcards: Flashcard[];
   examStrategy: string;
+  readingExamPractice?: ReadingExamPractice;
 }
