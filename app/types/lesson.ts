@@ -24,6 +24,7 @@ export interface VocabularyItem {
   english: string;
   persian: string;
   example: string;
+  category?: "word" | "phrase" | "collocation" | "connector";
 }
 
 export interface ReadingQuestion {
@@ -77,4 +78,5 @@ export interface Lesson {
   reading: Reading;
   writingTask: string;
   suggestedFlashcards: Flashcard[];
+  examStrategy: string;
 }

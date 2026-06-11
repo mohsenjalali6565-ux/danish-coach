@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
   }
 
   const convLines =
-    day.phase === 1 ? "8 to 12" : day.phase === 2 ? "12 to 18" : "15 to 25";
+    day.phase === 1 ? "15 to 20" : day.phase === 2 ? "25 to 30" : "30 to 40";
   const readingWords =
-    day.phase === 1 ? "120 to 150" : day.phase === 2 ? "250 to 300" : "400 to 500";
+    day.phase === 1 ? "200 to 300" : day.phase === 2 ? "400 to 600" : "700 to 900";
 
   // Build optional PD3 metadata blocks to inject into the prompt
   const vocabularyThemeBlock = day.vocabularyTheme
@@ -98,10 +98,11 @@ CONTENT VOLUME — HARD REQUIREMENTS. Never go below these numbers. Count before
 - keySentences: MINIMUM 15 items. Target 18. Count them. If fewer than 15, add more before returning.
 - grammarPoints: MINIMUM 2, MAXIMUM 3 items
 - grammarPoints[].examples: MINIMUM 4 examples each
-- vocabulary: MINIMUM 15 items. Target 20. Count them. If fewer than 15, add more before returning.
+- vocabulary: MINIMUM 15 items. Target 20–25. At least 6 must be phrases, collocations, connectors, or fixed expressions — not single words. Count them. If fewer than 15, add more before returning.
 - reading.text: MINIMUM ${readingWords} words. Count the words. If fewer, expand the text.
 - reading.questions: MINIMUM 8 items. Target 10. Count them. If fewer than 8, add more.
-- suggestedFlashcards: MINIMUM 20 items. Target 25. Count them. If fewer than 20, add more.
+- suggestedFlashcards: MINIMUM 20 items. Target 25–35. Count them. If fewer than 20, add more.
+- examStrategy: MINIMUM 150 words, written entirely in Persian. Count the words. If fewer than 150, expand before returning.
 
 QUALITY:
 - Conversation must feel realistic, not like a scripted drill. The topic should arise naturally.
@@ -152,37 +153,55 @@ GRAMMAR — Must:
 VOCABULARY — Must:
 - Cover the vocabulary theme: ${day.vocabularyTheme ?? day.topic}.
 - Include NOT only single words but also useful phrases, collocations, and multi-word expressions.
+- At least 6 items must be phrases, collocations, connectors, or fixed expressions — not single words.
 - Every vocabulary item must have a full, natural Danish sentence as its "example" field — not a fragment.
+- Set the "category" field for each item: "word" for single words, "phrase" for multi-word expressions, "collocation" for common word combinations, "connector" for discourse connectors and linking words.
 - Prioritize words and phrases the student will actually need for PD3 reading and writing tasks.
 
 READING — ${phaseReadingGuidance}
 - The text type must be: ${day.textType ?? "appropriate to the phase"}.
 - The text must match the reading focus: ${day.readingFocus ?? "general comprehension"}.
 - Reading questions must STRICTLY match the required question types: ${day.questionTypes?.join(", ") ?? "comprehension, inference, vocabulary"}.
-  - "multiple choice": provide exactly 4 options labeled A, B, C, D and include the correct answer key.
-  - "true/false": state the claim clearly; give a true/false answer with a brief justification in the "answer" field.
-  - "short answer": require a full sentence answer based on the text.
+  - "short answer" or "short_answer": require a complete, full-sentence answer based directly on the text.
+  - "true/false": state a claim clearly; include "True" or "False" + a brief justification quoting or referencing the text in the "answer" field.
+  - "multiple choice" or "multiple_choice": provide exactly 4 options labeled A, B, C, D. Include the correct answer letter in the "answer" field.
+  - "matching": provide 4–6 items in column A (e.g., people, phrases, or text excerpts) and 4–6 items in column B to match. Format the question as a matching task. The "answer" field lists the correct pairs.
+  - "cloze": provide a sentence or short paragraph with 1–3 blanks marked as ___. The "answer" field gives the correct word(s) for each blank, in order.
+  - "gapped_text": provide a paragraph with one sentence removed and marked as [___]. List 3–4 candidate sentences (labeled A–D) for the student to choose from. The "answer" field states which option belongs in the gap and explains why.
+  - "inference": ask the student to deduce meaning, attitude, implication, or subtext not directly stated in the text. The "answer" field provides the inferred meaning with a reference to the relevant text evidence.
   - "extended writing": ask the student to write 3–5 sentences in Danish (e.g., their opinion, a summary, a comparison).
   - "self-evaluation": ask the student to reflect on their own reading strategy or comprehension (answer field: suggested response).
-  - Do NOT mix up question types. Generate each question according to its stated type.
+  - Do NOT mix up question types. Generate each question strictly according to its stated type. Match the question type exactly to what appears in the Required Question Types list.
 
 WRITING TASK — Must include a clear, structured writing instruction:
 - What to write: ${day.writingTask}
+- Text type: ${day.textType ?? "appropriate to the phase"}
+- Situation/context: based on the day's topic and communication goal
 - Writing focus: ${day.writingFocus ?? "general writing practice"}
-- Text format: ${day.writingFormat ?? "as appropriate to the phase"}
-- Minimum length: ${day.phase === 1 ? "6–8 sentences" : day.phase === 2 ? "1–2 paragraphs (80–120 words)" : "2–3 paragraphs (150–200 words)"}
+- Text format and structure: ${day.writingFormat ?? "as appropriate to the phase"}
+- Required word count: ${day.phase === 1 ? "80–120 words" : day.phase === 2 ? "120–180 words" : "180–250 words"}
 - Register/style: ${day.phase === 1 ? "informal, personal" : day.phase === 2 ? "semi-formal, clear" : "formal or semi-formal, structured argument"}
-- Connectors to use: ${day.targetConnectors?.join(", ") ?? "as appropriate"}
-- Sentence patterns to demonstrate: ${day.sentencePatterns?.join(" | ") ?? "as appropriate"}
+- Required connectors: ${day.targetConnectors?.join(", ") ?? "as appropriate"}
+- Required sentence patterns: ${day.sentencePatterns?.join(" | ") ?? "as appropriate"}
 - The "writingTask" field in the JSON output must contain this full structured instruction — not just the task title.
 
-SUGGESTED FLASHCARDS — Must:
+SUGGESTED FLASHCARDS — Must produce 20–35 items total:
 - Prioritize full sentences and phrases over isolated words.
 - Include at least 5 flashcards built directly from the sentence patterns.
 - Include at least 3 flashcards covering target connectors with example sentences.
-- Include at least 5 vocabulary flashcards from the vocabulary theme.
+- Include at least 5 vocabulary flashcards from the vocabulary theme, prioritizing phrases and collocations.
 - Include at least 3 grammar flashcards (front: grammar label; back: explanation + example).
+- Include at least 3 flashcards with PD3 exam expressions or writing formulas useful for the exam.
 - Remaining flashcards: key sentences from the lesson that are useful for PD3 writing.
+
+EXAM STRATEGY — Must produce a dedicated examStrategy field:
+- Write entirely in Persian (فارسی). Minimum 150 words.
+- Cover all of the following for this specific day:
+  1. How to approach the required question types: ${day.questionTypes?.join(", ") ?? "comprehension questions"} — give a practical step-by-step technique for each type present.
+  2. For each question type, explain the exam strategy: matching (how to match), cloze (how to fill gaps), gapped_text (how to insert missing sentences), inference (how to read between the lines), as relevant to today's types.
+  3. How to structure the writing task for this day: give a clear paragraph plan with opening, body, and closing.
+  4. PD3 exam techniques for this day's text type: ${day.textType ?? "reading and writing task"}.
+- This is a PD3 exam skills guide — focus on strategy and technique, not grammar rules.
 
 Return this exact JSON structure (fill every field with real content):
 {
@@ -207,16 +226,17 @@ Return this exact JSON structure (fill every field with real content):
     }
   ],
   "vocabulary": [
-    { "danish": "...", "english": "...", "persian": "...", "example": "<full Danish sentence using this word>" }
+    { "danish": "...", "english": "...", "persian": "...", "example": "<full Danish sentence using this word>", "category": "word|phrase|collocation|connector" }
   ],
   "reading": {
     "title": "...",
     "text": "<${readingWords} words of authentic Danish text on the topic>",
     "questions": [
-      { "question": "...", "type": "comprehension|inference|vocabulary|opinion|multiple choice|true/false|short answer|extended writing|self-evaluation", "answer": "..." }
+      { "question": "...", "type": "short answer|true/false|multiple choice|matching|cloze|gapped_text|inference|extended writing|self-evaluation", "answer": "..." }
     ]
   },
   "writingTask": "<full structured writing instruction as described above>",
+  "examStrategy": "<full PD3 exam strategy guide in Persian — minimum 150 words — covering: (1) step-by-step technique for each required question type, (2) how to structure the writing task, (3) PD3 exam tips for this day's text type>",
   "suggestedFlashcards": [
     { "front": "...", "back": "...", "type": "vocabulary|sentence|grammar|phrase" }
   ]
@@ -225,11 +245,12 @@ Return this exact JSON structure (fill every field with real content):
 FINAL CHECK before returning — verify these counts in your output:
 - conversation has at least ${convLines.split(" ")[0]} turns
 - keySentences has at least 15 items
-- vocabulary has at least 15 items
+- vocabulary has at least 15 items, with at least 6 phrases/collocations/connectors/fixed expressions
 - reading.questions has at least 8 items
 - suggestedFlashcards has at least 20 items
 - reading questions match the required types: ${day.questionTypes?.join(", ") ?? "as specified"}
-- writingTask field contains the full structured instruction
+- writingTask field contains the full structured instruction including text type, word count, and required connectors
+- examStrategy is at least 150 words and written entirely in Persian
 - at least 5 keySentences use the sentence patterns
 - at least 3 suggestedFlashcards cover target connectors
 If any count or requirement is not met, fix it before returning.`;

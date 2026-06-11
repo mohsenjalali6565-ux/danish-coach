@@ -220,6 +220,26 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
         </div>
       </section>
 
+      {/* PD3 Strategy Guide */}
+      <section className={SECTION}>
+        {sectionTitle(phase, "🎯", "PD3 Strategy Guide")}
+        <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 ring-1 ring-indigo-200 dark:ring-indigo-800 px-5 py-5 shadow-sm">
+          {lesson.examStrategy ? (
+            <p
+              className="text-sm leading-8 text-zinc-700 dark:text-zinc-300 whitespace-pre-line"
+              dir="rtl"
+              lang="fa"
+            >
+              {lesson.examStrategy}
+            </p>
+          ) : (
+            <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">
+              PD3 strategy guide will appear for newly generated lessons.
+            </p>
+          )}
+        </div>
+      </section>
+
       {/* Key Sentences */}
       <section className={SECTION}>
         {sectionTitle(phase, "🔑", `Key Sentences (${lesson.keySentences.length})`)}
