@@ -108,6 +108,18 @@ export interface WritingCorrection {
   suggestedFlashcards: Flashcard[];
 }
 
+export type GrammarPlanItem = {
+  title: string;
+  focus: string;
+  level: string;
+  mustTeach: string[];
+  examples: string[];
+  commonMistakes: string[];
+  integrationNotes: string;
+};
+
+export type GrammarPlan = [GrammarPlanItem, GrammarPlanItem];
+
 export interface Lesson {
   day: number;
   title: string;

@@ -1,3 +1,5 @@
+import { GrammarPlan } from "../types/lesson";
+
 export interface CurriculumDay {
   dayNumber: number;
   topic: string;
@@ -15,6 +17,7 @@ export interface CurriculumDay {
   targetConnectors?: string[];
   sentencePatterns?: string[];
   writingFormat?: string;
+  grammarPlan?: GrammarPlan;
 }
 
 export const curriculum: CurriculumDay[] = [
@@ -36,6 +39,55 @@ export const curriculum: CurriculumDay[] = [
     targetConnectors: ["og", "men", "så"],
     sentencePatterns: ["Jeg [verb] om morgenen", "Først ... og så ..."],
     writingFormat: "6–8 simple sentences, first-person present tense",
+    grammarPlan: [
+      {
+        title: "Nutid — present tense of common verbs",
+        focus: "Present tense formation and use in daily routines, current actions, near future and general facts.",
+        level: "A2+/B1 Fast-Track Review",
+        mustTeach: [
+          "lave → laver",
+          "spise → spiser",
+          "drikke → drikker",
+          "arbejde → arbejder",
+          "læse → læser",
+          "gå → går",
+          "være → er",
+          "have → har",
+          "gøre → gør",
+        ],
+        examples: [
+          "Jeg drikker kaffe om morgenen.",
+          "Jeg laver mad nu.",
+          "I morgen arbejder jeg.",
+          "Mange mennesker arbejder om dagen.",
+        ],
+        commonMistakes: [
+          "Incorrect: Jeg drikke kaffe.",
+          "Correct: Jeg drikker kaffe.",
+        ],
+        integrationNotes: "Conversation and reading should describe daily routines using present tense.",
+      },
+      {
+        title: "V2 word order with fronted time expressions",
+        focus: "Danish main clause word order when a time expression comes first.",
+        level: "A2+/B1 Fast-Track Review",
+        mustTeach: [
+          "V2 means the finite verb must be in second position.",
+          "If a time expression is first, the subject comes after the verb.",
+          "Common fronted time expressions: om morgenen, først, så, om aftenen, i morgen.",
+        ],
+        examples: [
+          "Om morgenen drikker jeg kaffe.",
+          "Først arbejder jeg, og så går jeg en tur.",
+          "Om aftenen læser jeg en bog.",
+        ],
+        commonMistakes: [
+          "Incorrect: Om morgenen jeg drikker kaffe.",
+          "Correct: Om morgenen drikker jeg kaffe.",
+        ],
+        integrationNotes: "Conversation, reading and flashcards should include many fronted time expressions.",
+      },
+    ],
   },
   {
     dayNumber: 2,
