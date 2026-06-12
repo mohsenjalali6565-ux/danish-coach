@@ -17,6 +17,9 @@ export interface GrammarPoint {
   pattern: string;
   examples: string[];
   commonMistake: string;
+  pdUpgradeExample?: { simple: string; upgraded: string };
+  whyBetterForPD3?: string;
+  appliedExample?: string;
 }
 
 export interface VocabularyItem {
@@ -41,12 +44,18 @@ export interface Reading {
 
 export type ExamQuestionType =
   | "short_answer"
-  | "true_false"
-  | "matching"
   | "multiple_choice"
+  | "vocabulary_in_context"
+  | "matching"
+  | "matching_heading"
+  | "matching_person_opinion"
   | "cloze"
   | "gapped_text"
-  | "inference";
+  | "inference"
+  | "writer_purpose"
+  | "main_argument"
+  | "counterargument"
+  | "open_analytical_answer";
 
 export interface MatchingPair {
   id: string;

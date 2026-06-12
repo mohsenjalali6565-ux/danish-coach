@@ -223,9 +223,9 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
         </div>
       </section>
 
-      {/* PD3 Strategy Guide */}
+      {/* PD3 Tip of the Day */}
       <section className={SECTION}>
-        {sectionTitle(phase, "🎯", "PD3 Strategy Guide")}
+        {sectionTitle(phase, "🎯", "PD3 Tip of the Day")}
         <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 ring-1 ring-indigo-200 dark:ring-indigo-800 px-5 py-5 shadow-sm">
           {lesson.examStrategy ? (
             <p
@@ -510,6 +510,34 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
           <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Common Mistake</p>
           <p className="text-sm text-amber-700 dark:text-amber-300">{gp.commonMistake}</p>
         </div>
+
+        {/* PD3 Upgrade — only shown when present */}
+        {gp.pdUpgradeExample && (
+          <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 px-3 py-2.5 space-y-2">
+            <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wide">PD3 Upgrade</p>
+            <div className="space-y-1">
+              <div className="flex gap-2 items-start">
+                <span className="text-xs text-zinc-400 flex-shrink-0 mt-0.5 font-mono">B1</span>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">{gp.pdUpgradeExample.simple}</p>
+              </div>
+              <div className="flex gap-2 items-start">
+                <span className="text-xs text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5 font-mono">PD3</span>
+                <p className="text-sm font-medium text-indigo-800 dark:text-indigo-200">{gp.pdUpgradeExample.upgraded}</p>
+              </div>
+            </div>
+            {gp.whyBetterForPD3 && (
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 italic">{gp.whyBetterForPD3}</p>
+            )}
+          </div>
+        )}
+
+        {/* Applied example for today's writing task */}
+        {gp.appliedExample && (
+          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2.5">
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1">Applied to Today&apos;s Writing</p>
+            <p className="text-sm text-emerald-800 dark:text-emerald-200">{gp.appliedExample}</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -971,13 +999,17 @@ function ExamQuestionCard({ q, index }: { q: ExamQuestion; index: number }) {
 function ExamQuestionBody({ q }: { q: ExamQuestion }) {
   switch (q.type) {
     case "short_answer":
-    case "true_false":
     case "inference":
+    case "writer_purpose":
+    case "main_argument":
+    case "counterargument":
+    case "open_analytical_answer":
       return q.question ? (
         <p className="text-sm text-zinc-700 dark:text-zinc-300">{q.question}</p>
       ) : null;
 
     case "multiple_choice":
+    case "vocabulary_in_context":
       return (
         <div>
           {q.question && (
@@ -997,6 +1029,8 @@ function ExamQuestionBody({ q }: { q: ExamQuestion }) {
       );
 
     case "matching":
+    case "matching_heading":
+    case "matching_person_opinion":
       return (
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1.5">
