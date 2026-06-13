@@ -41,6 +41,7 @@ export interface ReadingQuestion {
   question: string;
   type: string;
   answer: string;
+  grammarFocus?: string;
 }
 
 export interface Reading {

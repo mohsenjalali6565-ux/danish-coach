@@ -92,12 +92,20 @@ function getWritingProgression(day: number): string {
   return `WRITING TYPE (Days 61–90): debatindlæg, formal argumentation, PD3-style response, formal letter, or analytical essay. Register: formal or semi-formal. Require genre-appropriate opening (e.g. "Formålet med denne tekst er..."), developed arguments, counterargument acknowledgment, and formal closing.`;
 }
 
+function getMinReadingWords(day: number): number {
+  if (day <= 30) return 200;
+  if (day <= 60) return 400;
+  if (day <= 75) return 600;
+  return 800;
+}
+
 // ── Post-generation validation ────────────────────────────────────────────────
 
 function validateGeneratedLesson(
   lesson: Record<string, unknown>,
   gp0Title: string,
-  gp1Title: string
+  gp1Title: string,
+  minReadingWords: number
 ): string | null {
   if (!Array.isArray(lesson.grammarPoints)) {
     return "grammarPoints is missing or not an array";
@@ -135,16 +143,51 @@ function validateGeneratedLesson(
       }
     }
 
+    const examplesArr = gpt.examples as unknown[] | undefined;
+    if (!Array.isArray(examplesArr) || examplesArr.length < 4) {
+      return `grammarPoints[${i}].examples must have at least 4 items (got ${Array.isArray(examplesArr) ? examplesArr.length : 0})`;
+    }
+
     const upgrade = gpt.pdUpgradeExample as Record<string, unknown> | undefined;
     if (!upgrade || !upgrade.simple || !upgrade.upgraded) {
       return `grammarPoints[${i}].pdUpgradeExample is missing or incomplete`;
     }
   }
 
-  const reading = lesson.reading as { questions?: unknown[] } | undefined;
-  const qCount = Array.isArray(reading?.questions) ? reading!.questions.length : 0;
+  const reading = lesson.reading as Record<string, unknown> | undefined;
+  if (!reading) return "reading is missing";
+
+  const readingText = reading.text;
+  if (typeof readingText !== "string" || readingText.trim() === "") {
+    return "reading.text is missing or empty";
+  }
+  const wordCount = readingText.trim().split(/\s+/).length;
+  if (wordCount < minReadingWords) {
+    return `reading.text must have at least ${minReadingWords} words (got ${wordCount})`;
+  }
+
+  const readingQuestions = reading.questions;
+  const qCount = Array.isArray(readingQuestions) ? readingQuestions.length : 0;
   if (qCount < 8) {
     return `reading.questions must have at least 8 items (got ${qCount})`;
+  }
+
+  const questions = Array.isArray(readingQuestions) ? (readingQuestions as unknown[]) : [];
+  const hasGP0Focus = questions.some(q => {
+    const item = q as Record<string, unknown>;
+    const focus = item.grammarFocus;
+    return typeof focus === "string" && focus === gp0Title;
+  });
+  const hasGP1Focus = questions.some(q => {
+    const item = q as Record<string, unknown>;
+    const focus = item.grammarFocus;
+    return typeof focus === "string" && focus === gp1Title;
+  });
+  if (!hasGP0Focus) {
+    return `reading.questions must include at least one question with grammarFocus exactly matching "${gp0Title}"`;
+  }
+  if (!hasGP1Focus) {
+    return `reading.questions must include at least one question with grammarFocus exactly matching "${gp1Title}"`;
   }
 
   const serialized = JSON.stringify(lesson).toLowerCase();
@@ -185,6 +228,8 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+
+  const minReadingWords = getMinReadingWords(dayNumber);
 
   const grammarPlanBlock = `━━━ GRAMMAR PLAN — DAY ${dayNumber} (V3.1) ━━━
 
@@ -344,7 +389,11 @@ GRAMMAR DEEP DIVE — Must:
 LESSON INTEGRATION — 50–70% of the lesson must reinforce the two grammarPlan items:
 - CONVERSATION: Include at least 3 exchanges demonstrating ${grammarPlan[0].title} and at least 3 demonstrating ${grammarPlan[1].title}.
 - READING TEXT: Embed several authentic examples of both grammarPlan items naturally in the reading text.
-- READING QUESTIONS (reading.questions): At least one question must explicitly test ${grammarPlan[0].title}. At least one question must explicitly test ${grammarPlan[1].title}.
+- READING QUESTIONS (reading.questions): At least one question must explicitly test ${grammarPlan[0].title} AND carry "grammarFocus": "${grammarPlan[0].title}". At least one question must explicitly test ${grammarPlan[1].title} AND carry "grammarFocus": "${grammarPlan[1].title}". Grammar-aware questions must ask the learner to identify, choose, correct, or explain a grammar pattern — not only test reading comprehension.
+  Every reading question MUST include a "grammarFocus" field set to exactly one of:
+    - "${grammarPlan[0].title}" — if the question explicitly tests this grammar pattern
+    - "${grammarPlan[1].title}" — if the question explicitly tests this grammar pattern
+    - "none" — if it is a pure comprehension or vocabulary question
 - WRITING TASK: The writing task instruction must explicitly require the learner to use both grammarPlan items.
 - FLASHCARDS: Include at least 5 flashcards built from sentences demonstrating ${grammarPlan[0].title}. Include at least 5 built from sentences demonstrating ${grammarPlan[1].title}.
 
@@ -361,6 +410,9 @@ READING — ${getReadingGuidance(dayNumber, day.textType ?? "appropriate text ty
 - The text must match the reading focus: ${day.readingFocus ?? "general comprehension"}.
 - The reading text MUST be at minimum ${readingWords.split(" ")[0]} words. Count the words and expand if needed. Never use placeholders.
 - Do NOT output true/false questions anywhere in reading.questions. Allowed simple types: short_answer, multiple_choice, matching, cloze, inference.
+- The reading text must naturally model both grammarPlan items multiple times.
+- Do not choose a reading genre or tense that conflicts with the grammarPlan items. If a grammarPlan item covers present tense, the reading text must include many present-tense verbs and habitual or daily routine sentences. If a grammarPlan item covers V2 word order, the reading text must include several fronted time expressions with correct V2 inversion.
+- Do not make the reading text predominantly past tense if present tense is a grammarPlan item for this day.
 
 WRITING TASK — Must include a clear, structured writing instruction:
 - What to write: ${day.writingTask}
@@ -472,7 +524,7 @@ Return this exact JSON structure (fill every field with real content):
     "title": "...",
     "text": "<${readingWords} words of authentic Danish text on the topic>",
     "questions": [
-      { "question": "...", "type": "short_answer|multiple_choice|matching|cloze|inference", "answer": "..." }
+      { "question": "...", "type": "short_answer|multiple_choice|matching|cloze|inference", "answer": "...", "grammarFocus": "<exact grammarPlan title | 'none'>" }
     ]
   },
   "writingTask": "<full structured writing instruction requiring use of ${grammarPlan[0].title} and ${grammarPlan[1].title}>",
@@ -504,7 +556,7 @@ Return this exact JSON structure (fill every field with real content):
 - No question anywhere has type "true_false" or "true/false" — this is absolutely forbidden
 - Question type diversity meets the Day ${dayNumber} requirements: ${requiredTypeMix}
 - All question types used are from the allowed list: ${allowedTypes}
-- reading.text is at least ${readingWords.split(" ")[0]} words, fully written, no placeholders
+- reading.text is at least ${minReadingWords} words, fully written, no placeholders
 - grammarPoints has EXACTLY 2 items
 - grammarPoints[0].title exactly matches: "${grammarPlan[0].title}"
 - grammarPoints[1].title exactly matches: "${grammarPlan[1].title}"
@@ -514,6 +566,10 @@ Return this exact JSON structure (fill every field with real content):
 - keySentences has at least 15 items
 - vocabulary has at least 15 items, with at least 6 phrases/collocations/connectors
 - reading.questions has at least 8 items
+- every reading.question has a "grammarFocus" field set to the exact grammarPlan title or "none"
+- at least one reading.question has "grammarFocus" exactly matching "${grammarPlan[0].title}"
+- at least one reading.question has "grammarFocus" exactly matching "${grammarPlan[1].title}"
+- each grammarPoint.examples array has at least 4 items
 - suggestedFlashcards has at least 20 items
 - writingTask field contains the full structured instruction including both grammarPlan item titles
 - matching_heading and matching_person_opinion questions have an "items" array, NOT a "question" string
@@ -524,39 +580,81 @@ Return this exact JSON structure (fill every field with real content):
 - at least 3 suggestedFlashcards cover target connectors
 If any check fails, fix it before returning.`;
 
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      response_format: { type: "json_object" },
-      messages: [
+  const MAX_ATTEMPTS = 3;
+  let lastRaw: string | null = null;
+  let lastValidationError: string | null = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
-      ],
-      max_tokens: 16000,
-    });
+      ];
 
-    const raw = completion.choices[0].message.content;
-    if (!raw) {
-      return NextResponse.json({ error: "Empty response from OpenAI" }, { status: 500 });
-    }
+      if (attempt > 1 && lastRaw && lastValidationError) {
+        messages.push({ role: "assistant", content: lastRaw });
+        messages.push({
+          role: "user",
+          content: `VALIDATION FAILED (attempt ${attempt - 1}): "${lastValidationError}". Fix this exact issue and return the complete corrected JSON.`,
+        });
+      }
 
-    const lesson = JSON.parse(raw) as Record<string, unknown>;
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        response_format: { type: "json_object" },
+        messages,
+        max_tokens: 16000,
+      });
 
-    const validationError = validateGeneratedLesson(
-      lesson,
-      grammarPlan[0].title,
-      grammarPlan[1].title
-    );
-    if (validationError) {
-      return NextResponse.json(
-        { error: `Generated lesson failed validation: ${validationError}` },
-        { status: 500 }
+      const raw = completion.choices[0].message.content;
+      if (!raw) {
+        lastValidationError = "Empty response from OpenAI";
+        lastRaw = null;
+        if (attempt === MAX_ATTEMPTS) {
+          return NextResponse.json({ error: lastValidationError }, { status: 500 });
+        }
+        continue;
+      }
+
+      lastRaw = raw;
+
+      let lesson: Record<string, unknown>;
+      try {
+        lesson = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        lastValidationError = "Invalid JSON from OpenAI";
+        if (attempt === MAX_ATTEMPTS) {
+          return NextResponse.json({ error: lastValidationError }, { status: 500 });
+        }
+        continue;
+      }
+
+      lastValidationError = validateGeneratedLesson(
+        lesson,
+        grammarPlan[0].title,
+        grammarPlan[1].title,
+        minReadingWords
       );
-    }
 
-    return NextResponse.json(lesson);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+      if (lastValidationError) {
+        if (attempt === MAX_ATTEMPTS) {
+          return NextResponse.json(
+            { error: `Generated lesson failed validation after ${MAX_ATTEMPTS} attempts: ${lastValidationError}` },
+            { status: 500 }
+          );
+        }
+        continue;
+      }
+
+      return NextResponse.json(lesson);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      lastValidationError = message;
+      if (attempt === MAX_ATTEMPTS) {
+        return NextResponse.json({ error: message }, { status: 500 });
+      }
+    }
   }
+
+  return NextResponse.json({ error: "Generation failed after all attempts" }, { status: 500 });
 }
