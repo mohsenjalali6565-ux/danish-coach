@@ -99,48 +99,26 @@ function getMinReadingWords(day: number): number {
   return 800;
 }
 
-// ── Flashcard quality guard ───────────────────────────────────────────────────
+// ── Word-only flashcard filter ────────────────────────────────────────────────
 
-// English words that must never appear as standalone tokens in Danish sentence fronts.
-const ENGLISH_FRONT_BLOCKLIST = new Set<string>([
-  "work","works","working",
-  "every",
-  "morning","evening","night",
-  "coffee",
-  "make","makes","made",
-  "do","does","did",
-  "go","goes","went",
-  "eat","eats",
-  "read","reads",
-  "watch","watches",
-  "see","saw",
-  "home","office",
-  "tired","busy",
-  "day",
+// Common Danish function words that are not useful as standalone vocabulary flashcards.
+const FLASHCARD_FUNCTION_WORDS = new Set<string>([
+  "og", "men", "så", "jeg", "du", "vi", "er", "har", "om", "i", "på",
+  "den", "det", "de", "en", "et", "at", "til", "af", "fra", "med",
 ]);
 
-// Returns true if `text` contains at least one identifiable Danish finite verb.
-// Covers present-tense forms ending in -r (including -er, -år, -ør),
-// common auxiliaries, and the most frequent irregular past forms.
-function hasDanishFiniteVerb(text: string): boolean {
-  // Any word of 2+ letters ending in 'r', followed by whitespace or sentence-end.
-  // Covers: spiser, drikker, går, bor, ser, gør, har, var, …
-  if (/[a-zA-ZæøåÆØÅ]{2,}r[\s.,!?;:"]/.test(text + " ")) return true;
-  // Auxiliaries and irregular past forms that do not end in 'r'.
-  return /\b(?:er|kan|vil|skal|gik|kom|tog|drak|sov|gav|fik|stod|lå|brød|kunne|ville|skulle|burde|hjalp|satte|lagde|bad|lod)\b/i.test(text);
-}
-
 // Returns [validCards, firstRejectionReason | null].
-// Invalid cards are dropped; the lesson is only rejected if fewer than 15 valid cards remain.
-function filterSuggestedFlashcards(flashcards: unknown[]): [unknown[], string | null] {
+// Only single-word vocabulary cards (type "word" or "vocabulary") are accepted.
+// Lesson is rejected if fewer than 12 valid word cards remain after filtering.
+function filterWordOnlyFlashcards(flashcards: unknown[]): [unknown[], string | null] {
   const valid: unknown[] = [];
   let firstRejection: string | null = null;
 
   for (let i = 0; i < flashcards.length; i++) {
-    const card = flashcards[i] as Record<string, unknown>;
+    const card     = flashcards[i] as Record<string, unknown>;
     const front    = typeof card.front === "string" ? card.front.trim() : "";
     const back     = typeof card.back  === "string" ? card.back.trim()  : "";
-    const cardType = typeof card.type  === "string" ? card.type.trim()  : "";
+    const cardType = typeof card.type  === "string" ? card.type.trim().toLowerCase() : "";
 
     let reason: string | null = null;
 
@@ -148,31 +126,20 @@ function filterSuggestedFlashcards(flashcards: unknown[]): [unknown[], string | 
       reason = "front is empty";
     } else if (!back) {
       reason = "back is empty";
-    } else if (cardType === "sentence" || cardType === "phrase") {
-      const tokens = front.toLowerCase().replace(/[.,!?;:]/g, " ").split(/\s+/).filter(Boolean);
-      const engWord = tokens.find(w => ENGLISH_FRONT_BLOCKLIST.has(w));
-      if (engWord) {
-        reason = `English word "${engWord}" mixed into Danish front`;
-      } else if (cardType === "sentence" && !hasDanishFiniteVerb(front)) {
-        reason = "no identifiable Danish finite verb in sentence card front";
-      }
-    } else if (cardType === "grammar") {
+    } else if (cardType !== "word" && cardType !== "vocabulary") {
+      reason = `type "${cardType}" is not allowed — only type "word" is accepted for suggested flashcards`;
+    } else if (front.includes(" ")) {
+      reason = "front contains spaces — must be a single word, not a phrase or sentence";
+    } else if (/[.,?!;:→/]|\.{2,}/.test(front)) {
+      reason = "front contains punctuation suggesting a phrase or sentence";
+    } else if (front.includes("-")) {
+      reason = "front contains a hyphen — use compound words written as one word (e.g. morgenmad)";
+    } else {
       const frontLower = front.toLowerCase();
-      const hasLabel =
-        frontLower.startsWith("correct") ||
-        frontLower.startsWith("ret fejlen") ||
-        frontLower.startsWith("rule") ||
-        frontLower.startsWith("regel") ||
-        frontLower.startsWith("how ") ||
-        front.includes("→") ||
-        front.includes("—") ||
-        front.includes("–");
-      if (!hasLabel) {
-        const tokens = front.toLowerCase().replace(/[.,!?;:]/g, " ").split(/\s+/).filter(Boolean);
-        const engWord = tokens.find(w => ENGLISH_FRONT_BLOCKLIST.has(w));
-        if (engWord) {
-          reason = `English word "${engWord}" in grammar card without instructional label`;
-        }
+      if (FLASHCARD_FUNCTION_WORDS.has(frontLower)) {
+        reason = `"${front}" is a common function word — not useful as a standalone vocabulary card`;
+      } else if (/nutid|v2|word order|present tense|correct the mistake|ret fejlen/i.test(frontLower)) {
+        reason = `"${front}" looks like a grammar title or correction exercise`;
       }
     }
 
@@ -181,7 +148,8 @@ function filterSuggestedFlashcards(flashcards: unknown[]): [unknown[], string | 
         firstRejection = `[${i}] (type "${cardType}"): ${reason} — front: "${front.slice(0, 80)}"`;
       }
     } else {
-      valid.push(card);
+      // Normalize "vocabulary" → "word" so the final lesson only contains type "word".
+      valid.push(cardType === "vocabulary" ? { ...card, type: "word" } : card);
     }
   }
 
@@ -417,17 +385,18 @@ function validateGeneratedLesson(
     return `reading.questions has a grammarFocus for "${gp1Title}" but no real grammar task — question text must contain a grammar task word (nutid, verber, ordstilling, omskriv, ret fejlen, identificer, V2, inversion, etc.)`;
   }
 
-  // Flashcard quality guard — filter bad cards, keep valid ones.
-  // Rejects only if fewer than 15 valid cards remain after filtering.
+  // Word-only flashcard guard — only single-word vocabulary cards are accepted.
+  // Rejects if fewer than 12 valid word cards remain after filtering.
   const flashcards = lesson.suggestedFlashcards;
-  if (!Array.isArray(flashcards) || flashcards.length < 15) {
-    return `suggestedFlashcards must have at least 15 items (got ${Array.isArray(flashcards) ? flashcards.length : 0})`;
+  if (!Array.isArray(flashcards) || flashcards.length < 5) {
+    return `suggestedFlashcards must have at least 5 items before filtering (got ${Array.isArray(flashcards) ? flashcards.length : 0})`;
   }
-  const [validFlashcards] = filterSuggestedFlashcards(flashcards as unknown[]);
-  if (validFlashcards.length < 15) {
-    return `Too few valid flashcards after filtering (${validFlashcards.length} of ${flashcards.length}; need 15)`;
+  const [validFlashcards, firstFlashcardRejection] = filterWordOnlyFlashcards(flashcards as unknown[]);
+  if (validFlashcards.length < 12) {
+    return `suggestedFlashcards: too few valid word-only cards after filtering (${validFlashcards.length} valid; need 12). First rejection: ${firstFlashcardRejection ?? "none"}`;
   }
-  lesson.suggestedFlashcards = validFlashcards;
+  // Cap at 18; all remaining cards are already normalized to type "word".
+  lesson.suggestedFlashcards = validFlashcards.slice(0, 18);
 
   const serialized = JSON.stringify(lesson).toLowerCase();
   const forbidden = ["[incomplete]", "[continue here]", "[continue]", "[additional text]", "[additional "];
@@ -581,6 +550,67 @@ Hard rules:
 
     console.log(`[questions-repair] repaired: ${parsed.questions.length} questions`);
     return parsed.questions as unknown[];
+  } catch {
+    return null;
+  }
+}
+
+// ── Suggested flashcards repair ──────────────────────────────────────────────
+
+// Called only when validateGeneratedLesson returns a suggestedFlashcards error.
+// Generates 12–18 fresh single-word vocabulary cards; touches nothing else.
+async function repairSuggestedFlashcardsAsWordsOnly(
+  lesson: Record<string, unknown>,
+  topic: string,
+  level: string
+): Promise<unknown[] | null> {
+  console.log(`[flashcards-repair] triggered — regenerating word-only flashcards`);
+
+  // Extract vocabulary words from the lesson as context for the repair.
+  const vocab = Array.isArray(lesson.vocabulary)
+    ? (lesson.vocabulary as Record<string, unknown>[])
+        .map((v) => (typeof v.danish === "string" ? v.danish : ""))
+        .filter(Boolean)
+        .join(", ")
+    : "";
+
+  const repairPrompt = `You are a Danish language teacher. Generate 12–18 single-word vocabulary flashcards from this lesson.
+
+Lesson topic: ${topic}
+Level: ${level}
+Lesson vocabulary words (for context): ${vocab || "see lesson content"}
+
+Rules — every card MUST follow ALL of these:
+- "front" must be exactly ONE Danish word — no spaces, no hyphens, no phrases
+- "type" must be "word" for every card
+- "back" must include English meaning + Persian meaning + optionally one short correct Danish example sentence
+- Danish compound words written as one word are allowed: morgenmad, sengetid, hverdag, mulighed, etc.
+- Do NOT generate: sentences, phrases, collocations, connectors (og, men, så), grammar titles, correction exercises
+- Do NOT generate common function words: og, men, så, jeg, du, vi, er, har, om, i, på, den, det, de, en, et
+- Prefer genuinely new or difficult vocabulary words from the lesson topic
+- Prefer base/lemma forms
+
+Output ONLY this JSON:
+{ "suggestedFlashcards": [
+  { "front": "<one Danish word>", "back": "<English + Persian + optional short example>", "type": "word" }
+] }`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: repairPrompt }],
+      max_tokens: 1500,
+    });
+
+    const raw = completion.choices[0].message.content;
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!Array.isArray(parsed.suggestedFlashcards) || parsed.suggestedFlashcards.length < 12) return null;
+
+    console.log(`[flashcards-repair] repaired: ${parsed.suggestedFlashcards.length} word cards`);
+    return parsed.suggestedFlashcards as unknown[];
   } catch {
     return null;
   }
@@ -758,7 +788,7 @@ CONTENT VOLUME — HARD REQUIREMENTS. Never go below these numbers. Count before
 - vocabulary: MINIMUM 15 items. Target 20–25. At least 6 must be phrases, collocations, connectors, or fixed expressions — not single words. Count them. If fewer than 15, add more before returning.
 - reading.text: MINIMUM ${minReadingWords} words. Target ${minReadingWords + 20}–${minReadingWords + 60} words to safely pass validation. ${minReadingWords - 1} words or fewer is INVALID — the lesson will be rejected. Count the words before returning. If under ${minReadingWords}, expand the text — do not summarize or write a short paragraph. NEVER truncate with placeholders.
 - reading.questions: MINIMUM 8 items. Target 10. Count them. If fewer than 8, add more.
-- suggestedFlashcards: MINIMUM 20 items. Target 25–35. Count them. If fewer than 20, add more.
+- suggestedFlashcards: 12–18 word-only vocabulary cards (type "word", single Danish words only). Count them. If fewer than 12, add more.
 - readingExamPractice.questions: EXACTLY ${questionCount} questions. This is a hard requirement for Day ${dayNumber}. Count them. Add or remove questions to reach exactly ${questionCount}.
 - examStrategy (PD3 Tip of the Day): 60–90 words in Persian. Must have exactly 3 labeled sections. Maximum 100 words.
 
@@ -893,27 +923,32 @@ WRITING TASK — Must include a clear, structured writing instruction:
 - Must explicitly require the learner to use: ${grammarPlan[0].title} AND ${grammarPlan[1].title}
 - The "writingTask" field in the JSON output must contain this full structured instruction — not just the task title.
 
-SUGGESTED FLASHCARDS — Must produce 20–35 items total:
-- Prioritize full sentences and phrases over isolated words.
-- Include at least 5 flashcards built directly from the sentence patterns.
-- Include at least 3 flashcards covering target connectors with example sentences.
-- Include at least 5 vocabulary flashcards from the vocabulary theme, prioritizing phrases and collocations.
-- Include at least 3 grammar flashcards (front: grammar label; back: explanation + example).
-- Include at least 5 flashcards with sentences demonstrating ${grammarPlan[0].title}.
-- Include at least 5 flashcards with sentences demonstrating ${grammarPlan[1].title}.
-- Include at least 3 flashcards with PD3 exam expressions or writing formulas useful for the exam.
-- Remaining flashcards: key sentences from the lesson that are useful for PD3 writing.
+SUGGESTED FLASHCARDS — Must produce 12–18 word-only vocabulary cards:
+- Every card front MUST be a single Danish word — no spaces, no phrases, no sentences.
+- type MUST be "word" for every card — no other type is accepted.
+- Danish compound words written as one word are allowed: morgenmad, familiebesøg, arbejdsdag, sengetid, hverdag, mulighed, afslapning, frokost, aftale, opgave, pause.
+- Do NOT generate: full sentences, phrases, collocations, connectors, grammar titles, grammar correction cards, sentence patterns.
+- Do NOT generate common function words: og, men, så, jeg, du, vi, er, har, om, i, på, den, det, de, en, et, at, til, af, fra, med.
+- Prefer genuinely useful, new, or difficult words from the lesson vocabulary, reading text, and conversation.
+- Prefer lemmas/base forms where relevant (e.g. "fleksibel" not "fleksibelt").
+- The back must include: English meaning + Persian meaning + optionally one short correct Danish example sentence.
 
-FLASHCARD QUALITY — Hard requirements. Every card must pass ALL of the following:
-- Sentence card fronts (type "sentence") must be complete, grammatically correct Danish sentences and must contain at least one Danish finite verb. FORBIDDEN: "Jeg work every day.", "Om morgenen stander værst..." These are rejected.
-- Phrase card fronts (type "phrase") may be Danish phrases or collocations without a verb, for example: "om morgenen", "i løbet af dagen", "på vej til arbejde", "efter frokost", "for at slappe af", "først … og så …". They must still be natural Danish and must not contain English words.
-- Both sentence and phrase card fronts must NOT contain any of the following English words as standalone tokens: work, works, working, every, morning, evening, night, coffee, make, makes, made, do, does, did, go, goes, went, eat, eats, read, reads, watch, watches, see, saw, home, office, tired, busy, day. A front like "Jeg work every day." is FORBIDDEN.
-- Grammar card fronts must use one of these two formats ONLY:
-  (a) A grammar label or rule — e.g., front: "Nutid — present tense of common verbs", back: "Add -er/-r to the verb stem: spise → spiser."
-  (b) A correction exercise — front: "Correct the mistake: Jeg drikke kaffe.", back: "Jeg drikker kaffe."
-  A raw incorrect Danish sentence with no label is FORBIDDEN as a grammar card front.
-- All card backs must be non-empty and provide genuine learning value.
-- All cards must be derived from this lesson's actual content: conversation lines, reading sentences, key sentences, vocabulary, grammarPlan examples. Do not generate random or unrelated sentences.
+GOOD examples (ALLOWED):
+- { "front": "fleksibel", "back": "flexible (انعطاف‌پذیر) — Han har en fleksibel arbejdsdag.", "type": "word" }
+- { "front": "sædvanlig", "back": "usual, ordinary (معمولی)", "type": "word" }
+- { "front": "sengetid", "back": "bedtime (وقت خواب)", "type": "word" }
+- { "front": "mulighed", "back": "opportunity, possibility (امکان)", "type": "word" }
+- { "front": "afslapning", "back": "relaxation (آرامش)", "type": "word" }
+- { "front": "frokost", "back": "lunch (ناهار)", "type": "word" }
+- { "front": "morgenmad", "back": "breakfast (صبحانه)", "type": "word" }
+
+BAD examples (FORBIDDEN — will be rejected):
+- { "front": "For at holde mig frisk, jeg løber hver morgen.", ... } — SENTENCE, FORBIDDEN
+- { "front": "Først arbejder jeg, og så går jeg en tur.", ... } — SENTENCE, FORBIDDEN
+- { "front": "gå en tur", ... } — PHRASE, FORBIDDEN
+- { "front": "slappe af", ... } — PHRASE, FORBIDDEN
+- { "front": "Nutid — present tense", ... } — GRAMMAR TITLE, FORBIDDEN
+- { "front": "og", ... } — FUNCTION WORD, FORBIDDEN
 
 PD3 TIP OF THE DAY — Must produce a dedicated examStrategy field:
 - Write entirely in Persian (فارسی).
@@ -1024,7 +1059,7 @@ Return this exact JSON structure (fill every field with real content):
     ]
   },
   "suggestedFlashcards": [
-    { "front": "...", "back": "...", "type": "vocabulary|sentence|grammar|phrase" }
+    { "front": "<single Danish word>", "back": "<English meaning + Persian meaning + optionally one short Danish example>", "type": "word" }
   ]
 }
 
@@ -1049,19 +1084,17 @@ Return this exact JSON structure (fill every field with real content):
 - the grammar-focused question for "${grammarPlan[0].title}" has a question text containing a real grammar task word (nutid, verber, verbet, ordstilling, V2, inversion, omskriv, identificer, grammatisk, ret fejlen, ret sætningen, subjekt, tempus) — NOT just an ordinary comprehension question
 - the grammar-focused question for "${grammarPlan[1].title}" has a question text containing a real grammar task word (nutid, verber, verbet, ordstilling, V2, inversion, omskriv, identificer, grammatisk, ret fejlen, ret sætningen, subjekt, tempus) — NOT just an ordinary comprehension question
 - each grammarPoint.examples array has at least 4 items
-- suggestedFlashcards has at least 20 items
+- suggestedFlashcards has 12–18 word-only vocabulary cards, every card has type "word"
 - writingTask field contains the full structured instruction including both grammarPlan item titles
 - matching_heading and matching_person_opinion questions have an "items" array, NOT a "question" string
 - cloze questions have "textWithBlanks" (not "gappedParagraph")
 - gapped_text questions have "gappedParagraph" and "missingSentenceOptions" (exactly 4 options)
 - multiple_choice and vocabulary_in_context questions have an "options" array with exactly 4 items
 - at least 5 keySentences use the sentence patterns
-- at least 3 suggestedFlashcards cover target connectors
-- every sentence flashcard front is a complete Danish sentence with a finite verb
-- every phrase flashcard front is a natural Danish phrase/collocation (verb not required) with no English mixing
-- no sentence or phrase flashcard front contains English words (work, every, morning, day, go, eat, etc.)
-- every grammar flashcard front is a grammar label (with "—") or a correction exercise (with "Correct the mistake:" or "Ret fejlen:")
-- all flashcard backs are non-empty
+- every suggestedFlashcard front is a SINGLE Danish word — no spaces, no hyphens, no punctuation
+- no suggestedFlashcard front is a phrase, sentence, collocation, connector, or grammar title
+- no suggestedFlashcard front is a common function word (og, men, så, jeg, du, vi, er, har, om, i, på)
+- all flashcard backs are non-empty and include English + Persian meanings
 If any check fails, fix it before returning.`;
 
   const MAX_ATTEMPTS = 2;
@@ -1179,6 +1212,25 @@ If any check fails, fix it before returning.`;
           );
           if (repairedConversation) {
             lesson.conversation = repairedConversation;
+            const repairError = validateGeneratedLesson(
+              lesson,
+              grammarPlan[0].title,
+              grammarPlan[1].title,
+              minReadingWords
+            );
+            lastValidationError = repairError;
+          }
+        }
+
+        // SUGGESTED_FLASHCARDS — repair only flashcards, no full regeneration.
+        if (lastValidationError && lastValidationError.includes("suggestedFlashcards")) {
+          const repairedFlashcards = await repairSuggestedFlashcardsAsWordsOnly(
+            lesson as Record<string, unknown>,
+            day.topic,
+            day.level
+          );
+          if (repairedFlashcards) {
+            lesson.suggestedFlashcards = repairedFlashcards;
             const repairError = validateGeneratedLesson(
               lesson,
               grammarPlan[0].title,
