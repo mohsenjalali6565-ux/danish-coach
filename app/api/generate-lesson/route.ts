@@ -340,6 +340,78 @@ function validateGeneratedLesson(
   return null;
 }
 
+// ── Reading text repair ───────────────────────────────────────────────────────
+
+// Called only when validateGeneratedLesson returns a reading-too-short error.
+// Sends a small focused prompt to expand only reading.text; touches nothing else.
+async function repairReadingTextIfTooShort(
+  lesson: Record<string, unknown>,
+  topic: string,
+  level: string,
+  phase: number,
+  gp0Title: string,
+  gp1Title: string,
+  minReadingWords: number
+): Promise<string | null> {
+  const reading = lesson.reading as Record<string, unknown> | undefined;
+  if (!reading) return null;
+
+  const currentText = typeof reading.text === "string" ? reading.text : "";
+  const currentTitle = typeof reading.title === "string" ? reading.title : topic;
+  const currentWordCount = currentText.trim().split(/\s+/).length;
+
+  console.log(`[reading-repair] triggered — current: ${currentWordCount} words, need: ${minReadingWords}`);
+
+  const targetMin = minReadingWords + 20;
+  const targetMax = minReadingWords + 60;
+
+  const repairPrompt = `You are a Danish language teacher. The reading text below is too short and must be expanded.
+
+Current reading title: ${currentTitle}
+Lesson topic: ${topic}
+Level: ${level}
+Phase: ${phase} of 3
+Grammar items to embed naturally: "${gp0Title}" and "${gp1Title}"
+
+Current text (${currentWordCount} words — too short, need at least ${minReadingWords}):
+${currentText}
+
+Task: Expand the text to ${targetMin}–${targetMax} words.
+Rules:
+- Preserve the same topic, meaning, and Danish language level
+- Add natural extra details — do not repeat existing sentences
+- Naturally embed examples of both grammar items: "${gp0Title}" and "${gp1Title}"
+- Write only Danish inside the text field
+- Do NOT create questions
+- Do NOT change the title
+- Do NOT use placeholders ([continue here], [additional text], etc.)
+- Do NOT add English words to the Danish text
+- Output ONLY this JSON: { "text": "<full expanded Danish text — minimum ${minReadingWords} words>" }`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: repairPrompt }],
+      max_tokens: 2000,
+    });
+
+    const raw = completion.choices[0].message.content;
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const repairedText = typeof parsed.text === "string" ? parsed.text.trim() : null;
+    if (!repairedText) return null;
+
+    const newWordCount = repairedText.split(/\s+/).length;
+    console.log(`[reading-repair] repaired: ${newWordCount} words`);
+
+    return repairedText;
+  } catch {
+    return null;
+  }
+}
+
 // ── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -807,13 +879,40 @@ If any check fails, fix it before returning.`;
       );
 
       if (lastValidationError) {
-        if (attempt === MAX_ATTEMPTS) {
-          return NextResponse.json(
-            { error: `Generated lesson failed validation after ${MAX_ATTEMPTS} attempts: ${lastValidationError}` },
-            { status: 500 }
+        // READING_TOO_SHORT — repair only reading.text, no full regeneration.
+        if (/reading\.text must have at least \d+ words \(got \d+\)/.test(lastValidationError)) {
+          const repairedText = await repairReadingTextIfTooShort(
+            lesson,
+            day.topic,
+            day.level,
+            day.phase,
+            grammarPlan[0].title,
+            grammarPlan[1].title,
+            minReadingWords
           );
+          if (repairedText) {
+            (lesson.reading as Record<string, unknown>).text = repairedText;
+            const repairError = validateGeneratedLesson(
+              lesson,
+              grammarPlan[0].title,
+              grammarPlan[1].title,
+              minReadingWords
+            );
+            // On success: clear the error and fall through to the normal success path below.
+            // On failure: keep the updated error for the retry/error-return logic.
+            lastValidationError = repairError;
+          }
         }
-        continue;
+
+        if (lastValidationError) {
+          if (attempt === MAX_ATTEMPTS) {
+            return NextResponse.json(
+              { error: `Generated lesson failed validation after ${MAX_ATTEMPTS} attempts: ${lastValidationError}` },
+              { status: 500 }
+            );
+          }
+          continue;
+        }
       }
 
       return NextResponse.json(lesson);
