@@ -273,11 +273,30 @@ function validateGeneratedLesson(
 
   const readingQuestions = reading.questions;
   const qCount = Array.isArray(readingQuestions) ? readingQuestions.length : 0;
-  if (qCount < 8) {
-    return `reading.questions must have at least 8 items (got ${qCount})`;
+  if (qCount !== 8) {
+    return `reading.questions must have exactly 8 items (got ${qCount})`;
   }
 
   const questions = Array.isArray(readingQuestions) ? (readingQuestions as unknown[]) : [];
+
+  // Per-item quality checks: reject empty, too-short, placeholder, or answer-less questions.
+  for (let i = 0; i < questions.length; i++) {
+    const item = questions[i] as Record<string, unknown>;
+    const qText = typeof item.question === "string" ? item.question.trim() : "";
+    if (!qText) {
+      return `reading.questions[${i}].question is empty`;
+    }
+    if (qText.length < 8) {
+      return `reading.questions[${i}].question is too short (${qText.length} chars): "${qText}"`;
+    }
+    if (/^(question\s*\d*|spørgsmål\s*\d*|\.{2,}|-+|n\/a)$/i.test(qText)) {
+      return `reading.questions[${i}].question is placeholder text: "${qText}"`;
+    }
+    const ans = typeof item.answer === "string" ? item.answer.trim() : "";
+    if (ans.length < 2) {
+      return `reading.questions[${i}].answer is missing or too short`;
+    }
+  }
   const hasGP0Focus = questions.some(q => {
     const item = q as Record<string, unknown>;
     const focus = item.grammarFocus;
@@ -407,6 +426,79 @@ Rules:
     console.log(`[reading-repair] repaired: ${newWordCount} words`);
 
     return repairedText;
+  } catch {
+    return null;
+  }
+}
+
+// ── Reading questions repair ──────────────────────────────────────────────────
+
+// Called only when validateGeneratedLesson returns a reading.questions error.
+// Generates exactly 8 fresh questions; touches nothing else in the lesson.
+async function repairReadingQuestionsIfInvalid(
+  lesson: Record<string, unknown>,
+  topic: string,
+  level: string,
+  phase: number,
+  gp0Title: string,
+  gp1Title: string
+): Promise<unknown[] | null> {
+  const reading = lesson.reading as Record<string, unknown> | undefined;
+  if (!reading) return null;
+
+  const readingText = typeof reading.text === "string" ? reading.text : "";
+  const readingTitle = typeof reading.title === "string" ? reading.title : topic;
+
+  console.log(`[questions-repair] triggered — regenerating reading.questions`);
+
+  const repairPrompt = `You are a Danish language teacher. Generate exactly 8 reading questions for the text below.
+
+Reading title: ${readingTitle}
+Reading text:
+${readingText}
+
+Lesson topic: ${topic}
+Level: ${level}
+Phase: ${phase} of 3
+Grammar item 1: "${gp0Title}"
+Grammar item 2: "${gp1Title}"
+
+Required 8 questions in this order:
+1. Comprehension — main content of the text (grammarFocus: "none")
+2. Comprehension — specific detail from the text (grammarFocus: "none")
+3. Vocabulary — ask about the meaning or use of a word or phrase from the text (grammarFocus: "none")
+4. Sequencing — ask about the order of events or structure (grammarFocus: "none")
+5. Grammar-aware — MUST test "${gp0Title}" — question text MUST contain at least one of: nutid, verber, verbet, ordstilling, V2, omskriv, ret, identificer, inversion, grammatisk (grammarFocus: "${gp0Title}")
+   Good example: "Find tre verber i nutid i teksten." or "Hvilke verber i teksten står i nutid?"
+6. Grammar-aware — MUST test "${gp1Title}" — question text MUST contain at least one of: nutid, verber, verbet, ordstilling, V2, omskriv, ret, identificer, inversion, grammatisk (grammarFocus: "${gp1Title}")
+   Good example: "Omskriv sætningen med korrekt V2-ordstilling: Om morgenen jeg drikker kaffe." or "Forklar hvorfor verbet kommer før subjektet i sætningen: Om morgenen drikker jeg kaffe."
+7. Inference — what can we conclude or infer from the text? (grammarFocus: "none")
+8. Reflection — what is the main message or lesson of the text? (grammarFocus: "none")
+
+Hard rules:
+- Every "question" field must be at least 8 characters and non-empty
+- Every "answer" field must be non-empty and a complete sentence
+- "grammarFocus" must be exactly "${gp0Title}", "${gp1Title}", or "none"
+- Questions 5 and 6 MUST have grammar task words in their question text — not ordinary comprehension
+- Do NOT output empty questions or placeholder text
+- Output ONLY this JSON: { "questions": [ { "question": "...", "type": "short_answer", "answer": "...", "grammarFocus": "..." }, ... ] }`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: repairPrompt }],
+      max_tokens: 2000,
+    });
+
+    const raw = completion.choices[0].message.content;
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!Array.isArray(parsed.questions) || parsed.questions.length !== 8) return null;
+
+    console.log(`[questions-repair] repaired: ${parsed.questions.length} questions`);
+    return parsed.questions as unknown[];
   } catch {
     return null;
   }
@@ -900,6 +992,28 @@ If any check fails, fix it before returning.`;
             );
             // On success: clear the error and fall through to the normal success path below.
             // On failure: keep the updated error for the retry/error-return logic.
+            lastValidationError = repairError;
+          }
+        }
+
+        // READING_QUESTIONS_INVALID — repair only reading.questions, no full regeneration.
+        if (lastValidationError && lastValidationError.includes("reading.questions")) {
+          const repairedQuestions = await repairReadingQuestionsIfInvalid(
+            lesson,
+            day.topic,
+            day.level,
+            day.phase,
+            grammarPlan[0].title,
+            grammarPlan[1].title
+          );
+          if (repairedQuestions) {
+            (lesson.reading as Record<string, unknown>).questions = repairedQuestions;
+            const repairError = validateGeneratedLesson(
+              lesson,
+              grammarPlan[0].title,
+              grammarPlan[1].title,
+              minReadingWords
+            );
             lastValidationError = repairError;
           }
         }
