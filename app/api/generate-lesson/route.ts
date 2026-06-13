@@ -69,7 +69,7 @@ function getReadingGuidance(day: number, textType: string): string {
   if (day <= 75) {
     return `Days 61–75: Write a PD3-level text matching: ${textType}. Use advanced connectors, passive voice, and nominalisations. Complex argument structure is required. Never output placeholders.`;
   }
-  return `Days 76–90 — PD3 simulation (Day ${day}): Write a full PD3 reading practice text. Genre: ${textType}. This must feel like a real PD3 exam reading task — analytical or journalistic register, nuanced multi-paragraph argument, advanced vocabulary, complex subordinate clause structures. Day ${day} must be measurably harder to read than Day 75. FORBIDDEN under any circumstances: [continue here], [additional X words], ellipses (...) used as filler, any placeholder text. Write the complete, uninterrupted text.`;
+  return `Days 76–90 — PD3 simulation (Day ${day}): Write a full PD3 reading practice text. Genre: ${textType}. This must feel like a real PD3 exam reading task — analytical or journalistic register, nuanced multi-paragraph argument, advanced vocabulary, complex subordinate clause structures. Day ${day} must be measurably harder to read than Day 75. FORBIDDEN under any circumstances: [continue here], [additional X words], any bracketed placeholder text. Write the complete, uninterrupted text.`;
 }
 
 function getVocabularyBias(day: number): string {
@@ -92,6 +92,72 @@ function getWritingProgression(day: number): string {
   return `WRITING TYPE (Days 61–90): debatindlæg, formal argumentation, PD3-style response, formal letter, or analytical essay. Register: formal or semi-formal. Require genre-appropriate opening (e.g. "Formålet med denne tekst er..."), developed arguments, counterargument acknowledgment, and formal closing.`;
 }
 
+// ── Post-generation validation ────────────────────────────────────────────────
+
+function validateGeneratedLesson(
+  lesson: Record<string, unknown>,
+  gp0Title: string,
+  gp1Title: string
+): string | null {
+  if (!Array.isArray(lesson.grammarPoints)) {
+    return "grammarPoints is missing or not an array";
+  }
+  if (lesson.grammarPoints.length !== 2) {
+    return `grammarPoints must have exactly 2 items (got ${lesson.grammarPoints.length})`;
+  }
+
+  const requiredStringFields = [
+    "title", "explanationPersian", "pattern", "formation", "use",
+    "commonMistake", "whyBetterForPD3", "appliedExample",
+    "grammarAwarePracticeIdea", "integrationNotes", "focus", "level",
+  ];
+  const requiredArrayFields = ["mustTeach", "examples"];
+
+  for (let i = 0; i < 2; i++) {
+    const gpt = lesson.grammarPoints[i] as Record<string, unknown>;
+    const expectedTitle = i === 0 ? gp0Title : gp1Title;
+    const actualTitle = typeof gpt.title === "string" ? gpt.title.trim() : "";
+
+    if (actualTitle !== expectedTitle) {
+      return `grammarPoints[${i}].title "${actualTitle}" does not match required title "${expectedTitle}"`;
+    }
+
+    for (const field of requiredStringFields) {
+      const val = gpt[field];
+      if (!val || typeof val !== "string" || val.trim() === "") {
+        return `grammarPoints[${i}].${field} is missing or empty`;
+      }
+    }
+    for (const field of requiredArrayFields) {
+      const val = gpt[field];
+      if (!Array.isArray(val) || val.length === 0) {
+        return `grammarPoints[${i}].${field} is missing or empty`;
+      }
+    }
+
+    const upgrade = gpt.pdUpgradeExample as Record<string, unknown> | undefined;
+    if (!upgrade || !upgrade.simple || !upgrade.upgraded) {
+      return `grammarPoints[${i}].pdUpgradeExample is missing or incomplete`;
+    }
+  }
+
+  const reading = lesson.reading as { questions?: unknown[] } | undefined;
+  const qCount = Array.isArray(reading?.questions) ? reading!.questions.length : 0;
+  if (qCount < 8) {
+    return `reading.questions must have at least 8 items (got ${qCount})`;
+  }
+
+  const serialized = JSON.stringify(lesson).toLowerCase();
+  const forbidden = ["[incomplete]", "[continue here]", "[continue]", "[additional text]", "[additional "];
+  for (const phrase of forbidden) {
+    if (serialized.includes(phrase)) {
+      return `Forbidden placeholder text found: "${phrase}"`;
+    }
+  }
+
+  return null;
+}
+
 // ── POST handler ─────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -111,6 +177,36 @@ export async function POST(request: NextRequest) {
   if (!day) {
     return NextResponse.json({ error: "Day not found" }, { status: 404 });
   }
+
+  const grammarPlan = day.grammarPlan;
+  if (!grammarPlan) {
+    return NextResponse.json(
+      { error: `Day ${dayNumber} is missing a grammarPlan. Ensure curriculum.ts has exactly 2 grammarPlan items for this day before generating.` },
+      { status: 500 }
+    );
+  }
+
+  const grammarPlanBlock = `━━━ GRAMMAR PLAN — DAY ${dayNumber} (V3.1) ━━━
+
+These are the ONLY two grammar items for this lesson. Do not invent, substitute, add, remove, merge, or rename grammar topics.
+
+Grammar Item 1:
+  Title: ${grammarPlan[0].title}
+  Focus: ${grammarPlan[0].focus}
+  Level: ${grammarPlan[0].level}
+  Must Teach: ${grammarPlan[0].mustTeach.join(" | ")}
+  Examples: ${grammarPlan[0].examples.join(" | ")}
+  Common Mistakes: ${grammarPlan[0].commonMistakes.join(" | ")}
+  Integration Notes: ${grammarPlan[0].integrationNotes}
+
+Grammar Item 2:
+  Title: ${grammarPlan[1].title}
+  Focus: ${grammarPlan[1].focus}
+  Level: ${grammarPlan[1].level}
+  Must Teach: ${grammarPlan[1].mustTeach.join(" | ")}
+  Examples: ${grammarPlan[1].examples.join(" | ")}
+  Common Mistakes: ${grammarPlan[1].commonMistakes.join(" | ")}
+  Integration Notes: ${grammarPlan[1].integrationNotes}`;
 
   // Progressive difficulty values
   const convLines =
@@ -159,7 +255,7 @@ LANGUAGE RULES:
 CONTENT VOLUME — HARD REQUIREMENTS. Never go below these numbers. Count before finalizing:
 - conversation: MINIMUM ${convLines} speaker turns. Count them. If fewer, add more.
 - keySentences: MINIMUM 15 items. Target 18. Count them. If fewer than 15, add more before returning.
-- grammarPoints: MINIMUM 2, MAXIMUM 3 items
+- grammarPoints: EXACTLY 2 items — no more, no fewer
 - grammarPoints[].examples: MINIMUM 4 examples each
 - vocabulary: MINIMUM 15 items. Target 20–25. At least 6 must be phrases, collocations, connectors, or fixed expressions — not single words. Count them. If fewer than 15, add more before returning.
 - reading.text: MINIMUM ${readingWords} words. Count the words. If fewer, expand the text. NEVER truncate with placeholders.
@@ -174,7 +270,7 @@ QUALITY:
 - Vocabulary examples must be complete, natural sentences using the word in context.
 - Reading text must be engaging and appropriate to the topic and level.
 - Flashcard fronts are Danish; backs are English (or the reverse for grammar cards where front is the grammar label).
-- FORBIDDEN: [continue here], [additional X words], ellipses (...) used as filler, any placeholder. Always complete every section fully.
+- FORBIDDEN: [continue here], [additional X words], [incomplete], [continue], [additional text], any bracketed placeholder text, and empty sections. Ellipses (...) are allowed in normal Danish sentences such as "Det kan diskuteres, om..." or "På den ene side..." — only forbidden when used as filler to avoid completing a section. Always complete every section fully.
 
 PD3 COMPLIANCE — MANDATORY. You must follow every PD3 metadata field listed in the user prompt. These are not suggestions. Ignoring any of them is an error.`;
 
@@ -185,7 +281,6 @@ Topic: ${day.topic}
 Level: ${day.level}
 Phase: ${day.phase} of 3
 Communication Goal: ${day.communicationGoal}
-Grammar Focus: ${day.grammarFocus.join(" / ")}
 Writing Task: ${day.writingTask}
 ${vocabularyThemeBlock}
 ${pd3SkillBlock}
@@ -196,6 +291,8 @@ ${questionTypesBlock}
 ${connectorsBlock}
 ${sentencePatternsBlock}
 ${writingFormatBlock}
+
+${grammarPlanBlock}
 
 ━━━ PROGRESSIVE DIFFICULTY — DAY ${dayNumber} OF 90 ━━━
 
@@ -209,6 +306,8 @@ CONVERSATION — ${getConversationGuidance(dayNumber)}
 - The conversation must demonstrate the target connectors (${day.targetConnectors?.join(", ") ?? "as appropriate"}) naturally within the dialogue.
 - At least 3 turns must contain or reference the sentence patterns: ${day.sentencePatterns?.join(" | ") ?? "as appropriate"}.
 - The communication goal must be fully achieved by the end of the conversation.
+- At least 3 conversation exchanges must naturally demonstrate grammarPlan item 1 (${grammarPlan[0].title}).
+- At least 3 conversation exchanges must naturally demonstrate grammarPlan item 2 (${grammarPlan[1].title}).
 
 KEY SENTENCES — Must include:
 - At least 5 sentences directly built from the sentence patterns: ${day.sentencePatterns?.join(" | ") ?? "as appropriate"}.
@@ -217,17 +316,37 @@ KEY SENTENCES — Must include:
 - Variety: include statements, questions, and complex sentences.
 
 GRAMMAR DEEP DIVE — Must:
-- Explain the grammar focus (${day.grammarFocus.join(" / ")}) fully in Persian.
-- Connect at least one grammar point to the sentence patterns or writing format for this day.
-- Each grammar point MUST include all of the following fields:
-  1. "explanationPersian": Persian explanation (4–5 sentences, pedagogically detailed)
-  2. "pattern": the grammatical pattern
-  3. "examples": at least 4 natural examples
-  4. "commonMistake": a typical Persian-speaker error and the correct form
-  5. "pdUpgradeExample": an object with "simple" (a basic B1 sentence using this grammar) and "upgraded" (a PD3-quality version of the same idea using this grammar more sophisticatedly)
-  6. "whyBetterForPD3": one sentence in Danish explaining why the upgraded version is better for PD3
-  7. "appliedExample": one example sentence showing this grammar applied to today's writing task topic
+- Use ONLY the two grammarPlan items provided in the GRAMMAR PLAN block above.
+- Do NOT invent, substitute, add, remove, merge, or rename any grammar topic.
+- grammarPoints must contain EXACTLY 2 items — no more, no less.
+- grammarPoints[0].title MUST exactly match: "${grammarPlan[0].title}"
+- grammarPoints[1].title MUST exactly match: "${grammarPlan[1].title}"
+- Teach each item deeply. Use the mustTeach list as your minimum coverage requirement.
+- The explanation must be in Persian (4–5 sentences, pedagogically detailed).
+- Each grammar point MUST include ALL of the following fields:
+  1. "title": the EXACT title from grammarPlan — do not alter, shorten, or rephrase
+  2. "focus": the focus area from grammarPlan
+  3. "level": the CEFR level from grammarPlan
+  4. "mustTeach": array — cover every item listed in the grammarPlan mustTeach list
+  5. "explanationPersian": Persian explanation — 4–5 sentences, covering formation, use, and what distinguishes this from similar forms
+  6. "pattern": the grammatical pattern formula
+  7. "formation": how the form is built step by step (e.g. verb stem + ending, auxiliary + past participle)
+  8. "use": when and why this grammar form is used — contexts, registers, distinctions from similar structures
+  9. "examples": at least 4 natural, complete Danish example sentences
+  10. "commonMistake": a typical error made by Persian speakers, with the incorrect form, the correct form, and a brief explanation
+  11. "pdUpgradeExample": { "simple": <basic B1 sentence>, "upgraded": <PD3-quality version using this grammar more sophisticatedly> }
+  12. "whyBetterForPD3": one Danish sentence explaining why the upgraded version is better for PD3
+  13. "appliedExample": one sentence applying this grammar to today's writing task topic
+  14. "grammarAwarePracticeIdea": a short reading question or exercise idea that tests this grammar in context — something a learner can practise immediately
+  15. "integrationNotes": how this grammar connects to today's lesson topic, writing task, and reading
 - Grammar must connect to today's reading question types and writing format.
+
+LESSON INTEGRATION — 50–70% of the lesson must reinforce the two grammarPlan items:
+- CONVERSATION: Include at least 3 exchanges demonstrating ${grammarPlan[0].title} and at least 3 demonstrating ${grammarPlan[1].title}.
+- READING TEXT: Embed several authentic examples of both grammarPlan items naturally in the reading text.
+- READING QUESTIONS (reading.questions): At least one question must explicitly test ${grammarPlan[0].title}. At least one question must explicitly test ${grammarPlan[1].title}.
+- WRITING TASK: The writing task instruction must explicitly require the learner to use both grammarPlan items.
+- FLASHCARDS: Include at least 5 flashcards built from sentences demonstrating ${grammarPlan[0].title}. Include at least 5 built from sentences demonstrating ${grammarPlan[1].title}.
 
 VOCABULARY — Must:
 - Cover the vocabulary theme: ${day.vocabularyTheme ?? day.topic}.
@@ -253,6 +372,7 @@ WRITING TASK — Must include a clear, structured writing instruction:
 - Register/style: ${day.phase === 1 ? "informal, personal" : day.phase === 2 ? "semi-formal, clear" : "formal or semi-formal, structured argument"}
 - Required connectors: ${day.targetConnectors?.join(", ") ?? "as appropriate"}
 - Required sentence patterns: ${day.sentencePatterns?.join(" | ") ?? "as appropriate"}
+- Must explicitly require the learner to use: ${grammarPlan[0].title} AND ${grammarPlan[1].title}
 - The "writingTask" field in the JSON output must contain this full structured instruction — not just the task title.
 
 SUGGESTED FLASHCARDS — Must produce 20–35 items total:
@@ -261,6 +381,8 @@ SUGGESTED FLASHCARDS — Must produce 20–35 items total:
 - Include at least 3 flashcards covering target connectors with example sentences.
 - Include at least 5 vocabulary flashcards from the vocabulary theme, prioritizing phrases and collocations.
 - Include at least 3 grammar flashcards (front: grammar label; back: explanation + example).
+- Include at least 5 flashcards with sentences demonstrating ${grammarPlan[0].title}.
+- Include at least 5 flashcards with sentences demonstrating ${grammarPlan[1].title}.
 - Include at least 3 flashcards with PD3 exam expressions or writing formulas useful for the exam.
 - Remaining flashcards: key sentences from the lesson that are useful for PD3 writing.
 
@@ -309,14 +431,38 @@ Return this exact JSON structure (fill every field with real content):
   ],
   "grammarPoints": [
     {
-      "title": "...",
-      "explanationPersian": "<4-5 sentences in Persian explaining the grammar rule clearly>",
-      "pattern": "...",
-      "examples": ["...", "...", "...", "...", "..."],
-      "commonMistake": "...",
+      "title": "<MUST exactly match: ${grammarPlan[0].title}>",
+      "focus": "${grammarPlan[0].focus}",
+      "level": "${grammarPlan[0].level}",
+      "mustTeach": ["<point from mustTeach list>", "..."],
+      "explanationPersian": "<4–5 sentences in Persian — pedagogically detailed, covering formation, use, and what distinguishes this grammar>",
+      "pattern": "<grammatical pattern formula>",
+      "formation": "<step-by-step formation: how the form is built>",
+      "use": "<when and why this form is used — contexts and registers>",
+      "examples": ["<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>"],
+      "commonMistake": "<typical Persian-speaker error with incorrect form, correct form, and explanation>",
       "pdUpgradeExample": { "simple": "<basic B1 sentence>", "upgraded": "<PD3-quality version>" },
-      "whyBetterForPD3": "<one sentence in Danish explaining why the upgraded version is better>",
-      "appliedExample": "<one sentence applying this grammar to today's writing task topic>"
+      "whyBetterForPD3": "<one Danish sentence explaining why the upgraded version is better>",
+      "appliedExample": "<one sentence applying this grammar to today's writing task topic>",
+      "grammarAwarePracticeIdea": "<a short reading question or exercise idea that tests this grammar>",
+      "integrationNotes": "<how this grammar connects to today's topic, writing, and reading>"
+    },
+    {
+      "title": "<MUST exactly match: ${grammarPlan[1].title}>",
+      "focus": "${grammarPlan[1].focus}",
+      "level": "${grammarPlan[1].level}",
+      "mustTeach": ["<point from mustTeach list>", "..."],
+      "explanationPersian": "<4–5 sentences in Persian — pedagogically detailed, covering formation, use, and what distinguishes this grammar>",
+      "pattern": "<grammatical pattern formula>",
+      "formation": "<step-by-step formation: how the form is built>",
+      "use": "<when and why this form is used — contexts and registers>",
+      "examples": ["<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>"],
+      "commonMistake": "<typical Persian-speaker error with incorrect form, correct form, and explanation>",
+      "pdUpgradeExample": { "simple": "<basic B1 sentence>", "upgraded": "<PD3-quality version>" },
+      "whyBetterForPD3": "<one Danish sentence explaining why the upgraded version is better>",
+      "appliedExample": "<one sentence applying this grammar to today's writing task topic>",
+      "grammarAwarePracticeIdea": "<a short reading question or exercise idea that tests this grammar>",
+      "integrationNotes": "<how this grammar connects to today's topic, writing, and reading>"
     }
   ],
   "vocabulary": [
@@ -329,7 +475,7 @@ Return this exact JSON structure (fill every field with real content):
       { "question": "...", "type": "short_answer|multiple_choice|matching|cloze|inference", "answer": "..." }
     ]
   },
-  "writingTask": "<full structured writing instruction as described above>",
+  "writingTask": "<full structured writing instruction requiring use of ${grammarPlan[0].title} and ${grammarPlan[1].title}>",
   "examStrategy": "<PD3 Tip of the Day in Persian — 60–90 words — exactly 3 labeled sections: نکته عملی / مثال کوتاه / تکنیک آزمون>",
   "readingExamPractice": {
     "title": "<Danish title, e.g. 'PD3 Læseforståelse — Eksamensøvelse'>",
@@ -359,14 +505,17 @@ Return this exact JSON structure (fill every field with real content):
 - Question type diversity meets the Day ${dayNumber} requirements: ${requiredTypeMix}
 - All question types used are from the allowed list: ${allowedTypes}
 - reading.text is at least ${readingWords.split(" ")[0]} words, fully written, no placeholders
-- Every grammarPoint has pdUpgradeExample, whyBetterForPD3, and appliedExample fields
+- grammarPoints has EXACTLY 2 items
+- grammarPoints[0].title exactly matches: "${grammarPlan[0].title}"
+- grammarPoints[1].title exactly matches: "${grammarPlan[1].title}"
+- Every grammarPoint has ALL required fields: title, focus, level, mustTeach, explanationPersian, pattern, formation, use, examples, commonMistake, pdUpgradeExample, whyBetterForPD3, appliedExample, grammarAwarePracticeIdea, integrationNotes
 - examStrategy has exactly 3 Persian sections: نکته عملی, مثال کوتاه, تکنیک آزمون — and is 60–90 words
 - conversation has at least ${convLines.split(" ")[0]} turns
 - keySentences has at least 15 items
 - vocabulary has at least 15 items, with at least 6 phrases/collocations/connectors
 - reading.questions has at least 8 items
 - suggestedFlashcards has at least 20 items
-- writingTask field contains the full structured instruction including text type, word count, and required connectors
+- writingTask field contains the full structured instruction including both grammarPlan item titles
 - matching_heading and matching_person_opinion questions have an "items" array, NOT a "question" string
 - cloze questions have "textWithBlanks" (not "gappedParagraph")
 - gapped_text questions have "gappedParagraph" and "missingSentenceOptions" (exactly 4 options)
@@ -391,7 +540,20 @@ If any check fails, fix it before returning.`;
       return NextResponse.json({ error: "Empty response from OpenAI" }, { status: 500 });
     }
 
-    const lesson = JSON.parse(raw);
+    const lesson = JSON.parse(raw) as Record<string, unknown>;
+
+    const validationError = validateGeneratedLesson(
+      lesson,
+      grammarPlan[0].title,
+      grammarPlan[1].title
+    );
+    if (validationError) {
+      return NextResponse.json(
+        { error: `Generated lesson failed validation: ${validationError}` },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(lesson);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

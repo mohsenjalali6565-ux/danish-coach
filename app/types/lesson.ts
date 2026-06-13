@@ -20,6 +20,13 @@ export interface GrammarPoint {
   pdUpgradeExample?: { simple: string; upgraded: string };
   whyBetterForPD3?: string;
   appliedExample?: string;
+  focus?: string;
+  level?: string;
+  mustTeach?: string[];
+  formation?: string;
+  use?: string;
+  grammarAwarePracticeIdea?: string;
+  integrationNotes?: string;
 }
 
 export interface VocabularyItem {

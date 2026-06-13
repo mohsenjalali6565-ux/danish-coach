@@ -470,8 +470,33 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
     <div className="rounded-2xl bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-700 overflow-hidden shadow-sm">
       <div className="bg-zinc-100 dark:bg-zinc-800/60 px-5 py-3 border-b border-zinc-200 dark:border-zinc-700">
         <p className="font-semibold text-sm text-zinc-900 dark:text-zinc-50">{gp.title}</p>
+        {(gp.focus || gp.level) && (
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {gp.focus && (
+              <span className="text-xs bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 px-2 py-0.5 rounded-full">{gp.focus}</span>
+            )}
+            {gp.level && (
+              <span className="text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-full font-medium">{gp.level}</span>
+            )}
+          </div>
+        )}
       </div>
       <div className="px-5 py-4 space-y-4">
+        {/* Must Learn checklist */}
+        {gp.mustTeach && gp.mustTeach.length > 0 && (
+          <div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide font-medium">Must Learn</p>
+            <ul className="space-y-1">
+              {gp.mustTeach.map((item, i) => (
+                <li key={i} className="text-sm text-zinc-700 dark:text-zinc-300 flex gap-2 leading-snug">
+                  <span className="text-zinc-400 flex-shrink-0 mt-0.5">-</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Persian explanation */}
         <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-4 py-3">
           <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 uppercase tracking-wide" dir="rtl" lang="fa">توضیح</p>
@@ -492,6 +517,24 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
           </code>
         </div>
 
+        {/* Formation */}
+        {gp.formation && (
+          <div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide font-medium">Formation</p>
+            <code className="block text-sm bg-zinc-100 dark:bg-zinc-800 rounded-lg px-3 py-2.5 text-zinc-800 dark:text-zinc-200 font-mono whitespace-pre-wrap">
+              {gp.formation}
+            </code>
+          </div>
+        )}
+
+        {/* When to Use */}
+        {gp.use && (
+          <div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide font-medium">When to Use</p>
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">{gp.use}</p>
+          </div>
+        )}
+
         {/* Examples */}
         <div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide font-medium">Examples</p>
@@ -510,6 +553,14 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
           <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">Common Mistake</p>
           <p className="text-sm text-amber-700 dark:text-amber-300">{gp.commonMistake}</p>
         </div>
+
+        {/* Grammar-Aware Practice Idea */}
+        {gp.grammarAwarePracticeIdea && (
+          <div className="rounded-lg bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800 px-3 py-2.5">
+            <p className="text-xs font-semibold text-sky-700 dark:text-sky-400 mb-1">Practice Idea</p>
+            <p className="text-sm text-sky-800 dark:text-sky-200">{gp.grammarAwarePracticeIdea}</p>
+          </div>
+        )}
 
         {/* PD3 Upgrade — only shown when present */}
         {gp.pdUpgradeExample && (
@@ -536,6 +587,14 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
           <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 px-3 py-2.5">
             <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1">Applied to Today&apos;s Writing</p>
             <p className="text-sm text-emerald-800 dark:text-emerald-200">{gp.appliedExample}</p>
+          </div>
+        )}
+
+        {/* Integration Notes */}
+        {gp.integrationNotes && (
+          <div className="rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 px-3 py-2.5">
+            <p className="text-xs font-semibold text-violet-700 dark:text-violet-400 mb-1">Integration</p>
+            <p className="text-sm text-violet-800 dark:text-violet-200">{gp.integrationNotes}</p>
           </div>
         )}
       </div>
