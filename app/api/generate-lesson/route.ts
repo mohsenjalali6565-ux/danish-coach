@@ -188,6 +188,22 @@ function filterSuggestedFlashcards(flashcards: unknown[]): [unknown[], string | 
   return [valid, firstRejection];
 }
 
+// ── Grammar-aware question keyword check ─────────────────────────────────────
+
+// Words that appear in genuine grammar task questions, not ordinary comprehension.
+// At least one of these must appear in the question text for any question whose
+// grammarFocus is set to a grammar plan title (not "none").
+const GRAMMAR_TASK_KEYWORDS = [
+  "nutid", "datid", "ordstilling", "v2", "verber", "verbet", "verbum",
+  "inversion", "tempus", "omskriv", "identificer", "grammatisk",
+  "ret fejlen", "ret sætningen", "subjekt", "sætningsskema",
+];
+
+function hasGrammarTaskKeyword(text: string): boolean {
+  const lower = text.toLowerCase();
+  return GRAMMAR_TASK_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 // ── Post-generation validation ────────────────────────────────────────────────
 
 function validateGeneratedLesson(
@@ -277,6 +293,28 @@ function validateGeneratedLesson(
   }
   if (!hasGP1Focus) {
     return `reading.questions must include at least one question with grammarFocus exactly matching "${gp1Title}"`;
+  }
+
+  // Grammar-aware text check: grammarFocus metadata alone is not enough.
+  // The question text itself must contain a real grammar task keyword.
+  const gp0GrammarQuestion = questions.find((q) => {
+    const item = q as Record<string, unknown>;
+    if (typeof item.grammarFocus !== "string" || item.grammarFocus !== gp0Title) return false;
+    const text = typeof item.question === "string" ? item.question : "";
+    return hasGrammarTaskKeyword(text);
+  });
+  if (!gp0GrammarQuestion) {
+    return `reading.questions has a grammarFocus for "${gp0Title}" but no real grammar task — question text must contain a grammar task word (nutid, verber, ordstilling, omskriv, ret fejlen, identificer, V2, inversion, etc.)`;
+  }
+
+  const gp1GrammarQuestion = questions.find((q) => {
+    const item = q as Record<string, unknown>;
+    if (typeof item.grammarFocus !== "string" || item.grammarFocus !== gp1Title) return false;
+    const text = typeof item.question === "string" ? item.question : "";
+    return hasGrammarTaskKeyword(text);
+  });
+  if (!gp1GrammarQuestion) {
+    return `reading.questions has a grammarFocus for "${gp1Title}" but no real grammar task — question text must contain a grammar task word (nutid, verber, ordstilling, omskriv, ret fejlen, identificer, V2, inversion, etc.)`;
   }
 
   // Flashcard quality guard — filter bad cards, keep valid ones.
@@ -490,7 +528,20 @@ GRAMMAR DEEP DIVE — Must:
 LESSON INTEGRATION — 50–70% of the lesson must reinforce the two grammarPlan items:
 - CONVERSATION: Include at least 3 exchanges demonstrating ${grammarPlan[0].title} and at least 3 demonstrating ${grammarPlan[1].title}.
 - READING TEXT: Embed several authentic examples of both grammarPlan items naturally in the reading text.
-- READING QUESTIONS (reading.questions): At least one question must explicitly test ${grammarPlan[0].title} AND carry "grammarFocus": "${grammarPlan[0].title}". At least one question must explicitly test ${grammarPlan[1].title} AND carry "grammarFocus": "${grammarPlan[1].title}". Grammar-aware questions must ask the learner to identify, choose, correct, or explain a grammar pattern — not only test reading comprehension.
+- READING QUESTIONS (reading.questions): At least one question must explicitly test ${grammarPlan[0].title} AND carry "grammarFocus": "${grammarPlan[0].title}". At least one question must explicitly test ${grammarPlan[1].title} AND carry "grammarFocus": "${grammarPlan[1].title}".
+  CRITICAL — Grammar-aware questions (those with grammarFocus ≠ "none") MUST contain a real grammar task in the question text itself. The question text must include at least one of these grammar task words: nutid, datid, verber, verbet, ordstilling, V2, inversion, omskriv, identificer, grammatisk, ret fejlen, ret sætningen, subjekt, tempus.
+  GOOD grammar-aware question examples (these PASS):
+    - "Find tre verber i nutid i teksten." [grammarFocus: "${grammarPlan[0].title}"]
+    - "Hvilke verber i teksten står i nutid?" [grammarFocus: "${grammarPlan[0].title}"]
+    - "Ret sætningen til korrekt V2-ordstilling: Om morgenen jeg drikker kaffe." [grammarFocus: "${grammarPlan[1].title}"]
+    - "Omskriv sætningen med korrekt ordstilling: Om aftenen jeg læser en bog." [grammarFocus: "${grammarPlan[1].title}"]
+    - "Forklar hvorfor verbet kommer før subjektet i: Om morgenen drikker jeg kaffe. Hvad hedder denne grammatiske regel?" [grammarFocus: "${grammarPlan[1].title}"]
+    - "Vælg den sætning, der har korrekt V2-ordstilling." [grammarFocus: "${grammarPlan[1].title}"]
+    - "Identificer de sætninger i teksten, der har inversion (V2)." [grammarFocus: "${grammarPlan[1].title}"]
+  BAD grammar-aware question examples (these FAIL — ordinary comprehension with grammar metadata):
+    - "Hvilken tid står personen op?" [grammarFocus: "${grammarPlan[0].title}"] ← FORBIDDEN: no grammar task word
+    - "Hvad gør personen først om morgenen?" [grammarFocus: "${grammarPlan[1].title}"] ← FORBIDDEN: no grammar task word
+    - "Hvilken aktivitet følger efter arbejdet?" [grammarFocus: "${grammarPlan[1].title}"] ← FORBIDDEN: no grammar task word
   Every reading question MUST include a "grammarFocus" field set to exactly one of:
     - "${grammarPlan[0].title}" — if the question explicitly tests this grammar pattern
     - "${grammarPlan[1].title}" — if the question explicitly tests this grammar pattern
@@ -681,6 +732,8 @@ Return this exact JSON structure (fill every field with real content):
 - every reading.question has a "grammarFocus" field set to the exact grammarPlan title or "none"
 - at least one reading.question has "grammarFocus" exactly matching "${grammarPlan[0].title}"
 - at least one reading.question has "grammarFocus" exactly matching "${grammarPlan[1].title}"
+- the grammar-focused question for "${grammarPlan[0].title}" has a question text containing a real grammar task word (nutid, verber, verbet, ordstilling, V2, inversion, omskriv, identificer, grammatisk, ret fejlen, ret sætningen, subjekt, tempus) — NOT just an ordinary comprehension question
+- the grammar-focused question for "${grammarPlan[1].title}" has a question text containing a real grammar task word (nutid, verber, verbet, ordstilling, V2, inversion, omskriv, identificer, grammatisk, ret fejlen, ret sætningen, subjekt, tempus) — NOT just an ordinary comprehension question
 - each grammarPoint.examples array has at least 4 items
 - suggestedFlashcards has at least 20 items
 - writingTask field contains the full structured instruction including both grammarPlan item titles
