@@ -489,6 +489,10 @@ Rules:
     const newWordCount = repairedText.split(/\s+/).length;
     console.log(`[reading-repair] repaired: ${newWordCount} words`);
 
+    if (newWordCount < minReadingWords) {
+      console.log(`[reading-repair] still too short (${newWordCount} words) — rejecting`);
+      return null;
+    }
     return repairedText;
   } catch {
     return null;
@@ -1247,6 +1251,31 @@ If any check fails, fix it before returning.`;
           );
           if (repairedFlashcards) {
             lesson.suggestedFlashcards = repairedFlashcards;
+            const repairError = validateGeneratedLesson(
+              lesson,
+              grammarPlan[0].title,
+              grammarPlan[1].title,
+              minReadingWords
+            );
+            lastValidationError = repairError;
+          }
+        }
+
+        // READING_TOO_SHORT (second pass) — final safety net after all other repairs.
+        // Catches cases where the first pass failed, returned a still-short text, or
+        // where a subsequent repair triggered re-validation that again flagged length.
+        if (lastValidationError && /reading\.text must have at least \d+ words \(got \d+\)/.test(lastValidationError)) {
+          const repairedText = await repairReadingTextIfTooShort(
+            lesson,
+            day.topic,
+            day.level,
+            day.phase,
+            grammarPlan[0].title,
+            grammarPlan[1].title,
+            minReadingWords
+          );
+          if (repairedText) {
+            (lesson.reading as Record<string, unknown>).text = repairedText;
             const repairError = validateGeneratedLesson(
               lesson,
               grammarPlan[0].title,
