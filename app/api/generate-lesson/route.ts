@@ -130,16 +130,11 @@ function hasDanishFiniteVerb(text: string): boolean {
   return /\b(?:er|kan|vil|skal|gik|kom|tog|drak|sov|gav|fik|stod|lå|brød|kunne|ville|skulle|burde|hjalp|satte|lagde|bad|lod)\b/i.test(text);
 }
 
-function validateSuggestedFlashcards(flashcards: unknown[]): string | null {
-  let badCount = 0;
-  let firstError = "";
-
-  const flag = (i: number, cardType: string, front: string, reason: string) => {
-    if (!firstError) {
-      firstError = `[${i}] (type "${cardType}"): ${reason} — front: "${front.slice(0, 80)}"`;
-    }
-    badCount++;
-  };
+// Returns [validCards, firstRejectionReason | null].
+// Invalid cards are dropped; the lesson is only rejected if fewer than 15 valid cards remain.
+function filterSuggestedFlashcards(flashcards: unknown[]): [unknown[], string | null] {
+  const valid: unknown[] = [];
+  let firstRejection: string | null = null;
 
   for (let i = 0; i < flashcards.length; i++) {
     const card = flashcards[i] as Record<string, unknown>;
@@ -147,28 +142,21 @@ function validateSuggestedFlashcards(flashcards: unknown[]): string | null {
     const back     = typeof card.back  === "string" ? card.back.trim()  : "";
     const cardType = typeof card.type  === "string" ? card.type.trim()  : "";
 
-    if (!front) { flag(i, cardType, front, "front is empty"); continue; }
-    if (!back)  { flag(i, cardType, front, "back is empty");  continue; }
+    let reason: string | null = null;
 
-    if (cardType === "sentence" || cardType === "phrase") {
-      // Reject if any English blocklist word appears as a whole token.
+    if (!front) {
+      reason = "front is empty";
+    } else if (!back) {
+      reason = "back is empty";
+    } else if (cardType === "sentence" || cardType === "phrase") {
       const tokens = front.toLowerCase().replace(/[.,!?;:]/g, " ").split(/\s+/).filter(Boolean);
       const engWord = tokens.find(w => ENGLISH_FRONT_BLOCKLIST.has(w));
       if (engWord) {
-        flag(i, cardType, front, `English word "${engWord}" mixed into Danish front`);
-        continue;
+        reason = `English word "${engWord}" mixed into Danish front`;
+      } else if (cardType === "sentence" && !hasDanishFiniteVerb(front)) {
+        reason = "no identifiable Danish finite verb in sentence card front";
       }
-      // Sentence cards must contain at least one Danish finite verb.
-      // Phrase cards are allowed to be verb-free collocations (e.g. "om morgenen", "på vej til arbejde").
-      if (cardType === "sentence" && !hasDanishFiniteVerb(front)) {
-        flag(i, cardType, front, "no identifiable Danish finite verb in sentence card front");
-        continue;
-      }
-    }
-
-    if (cardType === "grammar") {
-      // Grammar cards are allowed English in instructional labels (e.g. "Correct the mistake:").
-      // Only check for English mixing when the front lacks an instructional or label structure.
+    } else if (cardType === "grammar") {
       const frontLower = front.toLowerCase();
       const hasLabel =
         frontLower.startsWith("correct") ||
@@ -183,18 +171,21 @@ function validateSuggestedFlashcards(flashcards: unknown[]): string | null {
         const tokens = front.toLowerCase().replace(/[.,!?;:]/g, " ").split(/\s+/).filter(Boolean);
         const engWord = tokens.find(w => ENGLISH_FRONT_BLOCKLIST.has(w));
         if (engWord) {
-          flag(i, cardType, front, `English word "${engWord}" in grammar card without instructional label`);
-          continue;
+          reason = `English word "${engWord}" in grammar card without instructional label`;
         }
       }
     }
-    // vocabulary type: empty-front/back checks already handled above.
+
+    if (reason !== null) {
+      if (!firstRejection) {
+        firstRejection = `[${i}] (type "${cardType}"): ${reason} — front: "${front.slice(0, 80)}"`;
+      }
+    } else {
+      valid.push(card);
+    }
   }
 
-  if (badCount > 0) {
-    return `${badCount} invalid suggested flashcard(s). First issue: ${firstError}`;
-  }
-  return null;
+  return [valid, firstRejection];
 }
 
 // ── Post-generation validation ────────────────────────────────────────────────
@@ -288,13 +279,17 @@ function validateGeneratedLesson(
     return `reading.questions must include at least one question with grammarFocus exactly matching "${gp1Title}"`;
   }
 
-  // Flashcard quality guard
+  // Flashcard quality guard — filter bad cards, keep valid ones.
+  // Rejects only if fewer than 15 valid cards remain after filtering.
   const flashcards = lesson.suggestedFlashcards;
   if (!Array.isArray(flashcards) || flashcards.length < 15) {
     return `suggestedFlashcards must have at least 15 items (got ${Array.isArray(flashcards) ? flashcards.length : 0})`;
   }
-  const flashcardError = validateSuggestedFlashcards(flashcards as unknown[]);
-  if (flashcardError) return flashcardError;
+  const [validFlashcards] = filterSuggestedFlashcards(flashcards as unknown[]);
+  if (validFlashcards.length < 15) {
+    return `Too few valid flashcards after filtering (${validFlashcards.length} of ${flashcards.length}; need 15)`;
+  }
+  lesson.suggestedFlashcards = validFlashcards;
 
   const serialized = JSON.stringify(lesson).toLowerCase();
   const forbidden = ["[incomplete]", "[continue here]", "[continue]", "[additional text]", "[additional "];
@@ -702,7 +697,7 @@ Return this exact JSON structure (fill every field with real content):
 - all flashcard backs are non-empty
 If any check fails, fix it before returning.`;
 
-  const MAX_ATTEMPTS = 3;
+  const MAX_ATTEMPTS = 2;
   let lastRaw: string | null = null;
   let lastValidationError: string | null = null;
 

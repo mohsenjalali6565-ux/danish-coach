@@ -65,8 +65,15 @@ export default function DayLesson({ day }: { day: CurriculumDay }) {
         body: JSON.stringify({ dayNumber: day.dayNumber }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? `HTTP ${res.status}`);
+        const raw = await res.text();
+        let errorMessage = `Generation failed: HTTP ${res.status}. ${raw.slice(0, 300)}`;
+        try {
+          const data = JSON.parse(raw) as { error?: string };
+          if (data.error) errorMessage = data.error;
+        } catch {
+          // non-JSON response (e.g. Vercel timeout)
+        }
+        throw new Error(errorMessage);
       }
       const generated: Lesson = await res.json();
 
