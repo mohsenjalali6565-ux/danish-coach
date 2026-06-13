@@ -179,9 +179,9 @@ export async function POST(request: NextRequest) {
   }
 
   const grammarPlan = day.grammarPlan;
-  if (!grammarPlan) {
+  if (!grammarPlan || grammarPlan.length !== 2) {
     return NextResponse.json(
-      { error: `Day ${dayNumber} is missing a grammarPlan. Ensure curriculum.ts has exactly 2 grammarPlan items for this day before generating.` },
+      { error: `Day ${dayNumber} grammarPlan must have exactly 2 items.` },
       { status: 500 }
     );
   }
