@@ -325,14 +325,11 @@ function validateGeneratedLesson(
       return `reading.questions[${i}].answer is missing or too short`;
     }
 
-    // Vocabulary/context questions: any quoted term must appear verbatim in reading.text.
-    // Exception: grammar correction questions may intentionally quote incorrect sentences.
-    const isVocabQuestion =
-      (typeof item.type === "string" && item.type.toLowerCase().includes("vocab")) ||
-      /hvad betyder|betydningen af|i sammenhængen|udtrykket|ordet\b/i.test(qText);
+    // All question types: any quoted Danish term must appear verbatim in reading.text.
+    // Exception: grammar correction questions may intentionally quote incorrect/altered forms.
     const isGrammarCorrection = hasGrammarTaskKeyword(qText);
 
-    if (isVocabQuestion && !isGrammarCorrection) {
+    if (!isGrammarCorrection) {
       const readingNorm = (readingText as string).toLowerCase();
       const quoted = [
         ...[...qText.matchAll(/'([^']+)'/g)].map((m) => m[1]),
@@ -407,6 +404,23 @@ function validateGeneratedLesson(
   }
 
   return null;
+}
+
+// ── Known-typo normalizer ────────────────────────────────────────────────────
+
+// Applied once after JSON parse, before validation.
+// Only fixes exact, known bad strings; never touches validated content rules.
+const TYPO_FIXES: [RegExp, string][] = [
+  [/\bIncorrent\b/g, "Incorrect"],
+  [/\bincorrent\b/g, "incorrect"],
+];
+
+function fixKnownTypos(lesson: Record<string, unknown>): Record<string, unknown> {
+  let s = JSON.stringify(lesson);
+  for (const [pattern, replacement] of TYPO_FIXES) {
+    s = s.replace(pattern, replacement);
+  }
+  return JSON.parse(s) as Record<string, unknown>;
 }
 
 // ── Reading text repair ───────────────────────────────────────────────────────
@@ -531,6 +545,8 @@ Hard rules:
 - "grammarFocus" must be exactly "${gp0Title}", "${gp1Title}", or "none"
 - Questions 5 and 6 MUST have grammar task words in their question text — not ordinary comprehension
 - For question 3 (vocabulary): if you quote a word or phrase, it MUST appear verbatim in the reading text above — do NOT inflect or alter the quoted form. Good: 'falde til ro' if the text has "falde til ro". Bad: 'faldt' if the text only has "falde".
+- ANY quoted word or phrase in ANY question must appear verbatim in the reading text above — this applies to all 8 questions, not just vocabulary questions
+- Use natural, clear Danish phrasing. Prefer "Hvilke verber i nutid kan du finde i teksten?" over awkward constructs like "Hvilket verb identificerer handlinger i teksten..."
 - Do NOT output empty questions or placeholder text
 - Output ONLY this JSON: { "questions": [ { "question": "...", "type": "short_answer", "answer": "...", "grammarFocus": "..." }, ... ] }`;
 
@@ -1137,7 +1153,7 @@ If any check fails, fix it before returning.`;
 
       let lesson: Record<string, unknown>;
       try {
-        lesson = JSON.parse(raw) as Record<string, unknown>;
+        lesson = fixKnownTypos(JSON.parse(raw) as Record<string, unknown>);
       } catch {
         lastValidationError = "Invalid JSON from OpenAI";
         if (attempt === MAX_ATTEMPTS) {
