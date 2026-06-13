@@ -296,6 +296,27 @@ function validateGeneratedLesson(
     if (ans.length < 2) {
       return `reading.questions[${i}].answer is missing or too short`;
     }
+
+    // Vocabulary/context questions: any quoted term must appear verbatim in reading.text.
+    // Exception: grammar correction questions may intentionally quote incorrect sentences.
+    const isVocabQuestion =
+      (typeof item.type === "string" && item.type.toLowerCase().includes("vocab")) ||
+      /hvad betyder|betydningen af|i sammenhængen|udtrykket|ordet\b/i.test(qText);
+    const isGrammarCorrection = hasGrammarTaskKeyword(qText);
+
+    if (isVocabQuestion && !isGrammarCorrection) {
+      const readingNorm = (readingText as string).toLowerCase();
+      const quoted = [
+        ...[...qText.matchAll(/'([^']+)'/g)].map((m) => m[1]),
+        ...[...qText.matchAll(/"([^"]+)"/g)].map((m) => m[1]),
+        ...[...qText.matchAll(/[»›]([^«‹]+)[«‹]/g)].map((m) => m[1]),
+      ];
+      for (const term of quoted) {
+        if (term.length > 1 && !readingNorm.includes(term.toLowerCase())) {
+          return `reading.questions[${i}] references quoted term not found in reading.text: "${term}"`;
+        }
+      }
+    }
   }
   const hasGP0Focus = questions.some(q => {
     const item = q as Record<string, unknown>;
@@ -480,6 +501,7 @@ Hard rules:
 - Every "answer" field must be non-empty and a complete sentence
 - "grammarFocus" must be exactly "${gp0Title}", "${gp1Title}", or "none"
 - Questions 5 and 6 MUST have grammar task words in their question text — not ordinary comprehension
+- For question 3 (vocabulary): if you quote a word or phrase, it MUST appear verbatim in the reading text above — do NOT inflect or alter the quoted form. Good: 'falde til ro' if the text has "falde til ro". Bad: 'faldt' if the text only has "falde".
 - Do NOT output empty questions or placeholder text
 - Output ONLY this JSON: { "questions": [ { "question": "...", "type": "short_answer", "answer": "...", "grammarFocus": "..." }, ... ] }`;
 
