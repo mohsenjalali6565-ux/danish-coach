@@ -99,6 +99,104 @@ function getMinReadingWords(day: number): number {
   return 800;
 }
 
+// ── Flashcard quality guard ───────────────────────────────────────────────────
+
+// English words that must never appear as standalone tokens in Danish sentence fronts.
+const ENGLISH_FRONT_BLOCKLIST = new Set<string>([
+  "work","works","working",
+  "every",
+  "morning","evening","night",
+  "coffee",
+  "make","makes","made",
+  "do","does","did",
+  "go","goes","went",
+  "eat","eats",
+  "read","reads",
+  "watch","watches",
+  "see","saw",
+  "home","office",
+  "tired","busy",
+  "day",
+]);
+
+// Returns true if `text` contains at least one identifiable Danish finite verb.
+// Covers present-tense forms ending in -r (including -er, -år, -ør),
+// common auxiliaries, and the most frequent irregular past forms.
+function hasDanishFiniteVerb(text: string): boolean {
+  // Any word of 2+ letters ending in 'r', followed by whitespace or sentence-end.
+  // Covers: spiser, drikker, går, bor, ser, gør, har, var, …
+  if (/[a-zA-ZæøåÆØÅ]{2,}r[\s.,!?;:"]/.test(text + " ")) return true;
+  // Auxiliaries and irregular past forms that do not end in 'r'.
+  return /\b(?:er|kan|vil|skal|gik|kom|tog|drak|sov|gav|fik|stod|lå|brød|kunne|ville|skulle|burde|hjalp|satte|lagde|bad|lod)\b/i.test(text);
+}
+
+function validateSuggestedFlashcards(flashcards: unknown[]): string | null {
+  let badCount = 0;
+  let firstError = "";
+
+  const flag = (i: number, cardType: string, front: string, reason: string) => {
+    if (!firstError) {
+      firstError = `[${i}] (type "${cardType}"): ${reason} — front: "${front.slice(0, 80)}"`;
+    }
+    badCount++;
+  };
+
+  for (let i = 0; i < flashcards.length; i++) {
+    const card = flashcards[i] as Record<string, unknown>;
+    const front    = typeof card.front === "string" ? card.front.trim() : "";
+    const back     = typeof card.back  === "string" ? card.back.trim()  : "";
+    const cardType = typeof card.type  === "string" ? card.type.trim()  : "";
+
+    if (!front) { flag(i, cardType, front, "front is empty"); continue; }
+    if (!back)  { flag(i, cardType, front, "back is empty");  continue; }
+
+    if (cardType === "sentence" || cardType === "phrase") {
+      // Reject if any English blocklist word appears as a whole token.
+      const tokens = front.toLowerCase().replace(/[.,!?;:]/g, " ").split(/\s+/).filter(Boolean);
+      const engWord = tokens.find(w => ENGLISH_FRONT_BLOCKLIST.has(w));
+      if (engWord) {
+        flag(i, cardType, front, `English word "${engWord}" mixed into Danish front`);
+        continue;
+      }
+      // Sentence cards must contain at least one Danish finite verb.
+      // Phrase cards are allowed to be verb-free collocations (e.g. "om morgenen", "på vej til arbejde").
+      if (cardType === "sentence" && !hasDanishFiniteVerb(front)) {
+        flag(i, cardType, front, "no identifiable Danish finite verb in sentence card front");
+        continue;
+      }
+    }
+
+    if (cardType === "grammar") {
+      // Grammar cards are allowed English in instructional labels (e.g. "Correct the mistake:").
+      // Only check for English mixing when the front lacks an instructional or label structure.
+      const frontLower = front.toLowerCase();
+      const hasLabel =
+        frontLower.startsWith("correct") ||
+        frontLower.startsWith("ret fejlen") ||
+        frontLower.startsWith("rule") ||
+        frontLower.startsWith("regel") ||
+        frontLower.startsWith("how ") ||
+        front.includes("→") ||
+        front.includes("—") ||
+        front.includes("–");
+      if (!hasLabel) {
+        const tokens = front.toLowerCase().replace(/[.,!?;:]/g, " ").split(/\s+/).filter(Boolean);
+        const engWord = tokens.find(w => ENGLISH_FRONT_BLOCKLIST.has(w));
+        if (engWord) {
+          flag(i, cardType, front, `English word "${engWord}" in grammar card without instructional label`);
+          continue;
+        }
+      }
+    }
+    // vocabulary type: empty-front/back checks already handled above.
+  }
+
+  if (badCount > 0) {
+    return `${badCount} invalid suggested flashcard(s). First issue: ${firstError}`;
+  }
+  return null;
+}
+
 // ── Post-generation validation ────────────────────────────────────────────────
 
 function validateGeneratedLesson(
@@ -189,6 +287,14 @@ function validateGeneratedLesson(
   if (!hasGP1Focus) {
     return `reading.questions must include at least one question with grammarFocus exactly matching "${gp1Title}"`;
   }
+
+  // Flashcard quality guard
+  const flashcards = lesson.suggestedFlashcards;
+  if (!Array.isArray(flashcards) || flashcards.length < 15) {
+    return `suggestedFlashcards must have at least 15 items (got ${Array.isArray(flashcards) ? flashcards.length : 0})`;
+  }
+  const flashcardError = validateSuggestedFlashcards(flashcards as unknown[]);
+  if (flashcardError) return flashcardError;
 
   const serialized = JSON.stringify(lesson).toLowerCase();
   const forbidden = ["[incomplete]", "[continue here]", "[continue]", "[additional text]", "[additional "];
@@ -438,6 +544,17 @@ SUGGESTED FLASHCARDS — Must produce 20–35 items total:
 - Include at least 3 flashcards with PD3 exam expressions or writing formulas useful for the exam.
 - Remaining flashcards: key sentences from the lesson that are useful for PD3 writing.
 
+FLASHCARD QUALITY — Hard requirements. Every card must pass ALL of the following:
+- Sentence card fronts (type "sentence") must be complete, grammatically correct Danish sentences and must contain at least one Danish finite verb. FORBIDDEN: "Jeg work every day.", "Om morgenen stander værst..." These are rejected.
+- Phrase card fronts (type "phrase") may be Danish phrases or collocations without a verb, for example: "om morgenen", "i løbet af dagen", "på vej til arbejde", "efter frokost", "for at slappe af", "først … og så …". They must still be natural Danish and must not contain English words.
+- Both sentence and phrase card fronts must NOT contain any of the following English words as standalone tokens: work, works, working, every, morning, evening, night, coffee, make, makes, made, do, does, did, go, goes, went, eat, eats, read, reads, watch, watches, see, saw, home, office, tired, busy, day. A front like "Jeg work every day." is FORBIDDEN.
+- Grammar card fronts must use one of these two formats ONLY:
+  (a) A grammar label or rule — e.g., front: "Nutid — present tense of common verbs", back: "Add -er/-r to the verb stem: spise → spiser."
+  (b) A correction exercise — front: "Correct the mistake: Jeg drikke kaffe.", back: "Jeg drikker kaffe."
+  A raw incorrect Danish sentence with no label is FORBIDDEN as a grammar card front.
+- All card backs must be non-empty and provide genuine learning value.
+- All cards must be derived from this lesson's actual content: conversation lines, reading sentences, key sentences, vocabulary, grammarPlan examples. Do not generate random or unrelated sentences.
+
 PD3 TIP OF THE DAY — Must produce a dedicated examStrategy field:
 - Write entirely in Persian (فارسی).
 - Target 60–90 words. Maximum 100 words.
@@ -578,6 +695,11 @@ Return this exact JSON structure (fill every field with real content):
 - multiple_choice and vocabulary_in_context questions have an "options" array with exactly 4 items
 - at least 5 keySentences use the sentence patterns
 - at least 3 suggestedFlashcards cover target connectors
+- every sentence flashcard front is a complete Danish sentence with a finite verb
+- every phrase flashcard front is a natural Danish phrase/collocation (verb not required) with no English mixing
+- no sentence or phrase flashcard front contains English words (work, every, morning, day, go, eat, etc.)
+- every grammar flashcard front is a grammar label (with "—") or a correction exercise (with "Correct the mistake:" or "Ret fejlen:")
+- all flashcard backs are non-empty
 If any check fails, fix it before returning.`;
 
   const MAX_ATTEMPTS = 3;
