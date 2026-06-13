@@ -404,7 +404,7 @@ CONTENT VOLUME — HARD REQUIREMENTS. Never go below these numbers. Count before
 - grammarPoints: EXACTLY 2 items — no more, no fewer
 - grammarPoints[].examples: MINIMUM 4 examples each
 - vocabulary: MINIMUM 15 items. Target 20–25. At least 6 must be phrases, collocations, connectors, or fixed expressions — not single words. Count them. If fewer than 15, add more before returning.
-- reading.text: MINIMUM ${readingWords} words. Count the words. If fewer, expand the text. NEVER truncate with placeholders.
+- reading.text: MINIMUM ${minReadingWords} words. Target ${minReadingWords + 20}–${minReadingWords + 60} words to safely pass validation. ${minReadingWords - 1} words or fewer is INVALID — the lesson will be rejected. Count the words before returning. If under ${minReadingWords}, expand the text — do not summarize or write a short paragraph. NEVER truncate with placeholders.
 - reading.questions: MINIMUM 8 items. Target 10. Count them. If fewer than 8, add more.
 - suggestedFlashcards: MINIMUM 20 items. Target 25–35. Count them. If fewer than 20, add more.
 - readingExamPractice.questions: EXACTLY ${questionCount} questions. This is a hard requirement for Day ${dayNumber}. Count them. Add or remove questions to reach exactly ${questionCount}.
@@ -509,7 +509,7 @@ VOCABULARY — Must:
 READING — ${getReadingGuidance(dayNumber, day.textType ?? "appropriate text type")}
 - The text type must be: ${day.textType ?? "appropriate to the phase"}.
 - The text must match the reading focus: ${day.readingFocus ?? "general comprehension"}.
-- The reading text MUST be at minimum ${readingWords.split(" ")[0]} words. Count the words and expand if needed. Never use placeholders.
+- READING TEXT LENGTH — HARD REQUIREMENT: reading.text must be at least ${minReadingWords} words. Target ${minReadingWords + 20}–${minReadingWords + 60} words to safely pass validation. ${minReadingWords - 1} words or fewer is INVALID — the lesson will be rejected and regenerated. Count approximately before returning. If under ${minReadingWords} words, expand the text. Do not summarize. Do not write a short paragraph. Never use placeholders.
 - Do NOT output true/false questions anywhere in reading.questions. Allowed simple types: short_answer, multiple_choice, matching, cloze, inference.
 - The reading text must naturally model both grammarPlan items multiple times.
 - Do not choose a reading genre or tense that conflicts with the grammarPlan items. If a grammarPlan item covers present tense, the reading text must include many present-tense verbs and habitual or daily routine sentences. If a grammarPlan item covers V2 word order, the reading text must include several fronted time expressions with correct V2 inversion.
@@ -634,7 +634,7 @@ Return this exact JSON structure (fill every field with real content):
   ],
   "reading": {
     "title": "...",
-    "text": "<${readingWords} words of authentic Danish text on the topic>",
+    "text": "<${minReadingWords + 20}–${minReadingWords + 60} words of authentic Danish text — MINIMUM ${minReadingWords} words, expand if shorter>",
     "questions": [
       { "question": "...", "type": "short_answer|multiple_choice|matching|cloze|inference", "answer": "...", "grammarFocus": "<exact grammarPlan title | 'none'>" }
     ]
@@ -668,7 +668,7 @@ Return this exact JSON structure (fill every field with real content):
 - No question anywhere has type "true_false" or "true/false" — this is absolutely forbidden
 - Question type diversity meets the Day ${dayNumber} requirements: ${requiredTypeMix}
 - All question types used are from the allowed list: ${allowedTypes}
-- reading.text is at least ${minReadingWords} words, fully written, no placeholders
+- reading.text is at least ${minReadingWords} words; target ${minReadingWords + 20}–${minReadingWords + 60} words — if under ${minReadingWords} words, expand it before returning; ${minReadingWords - 1} words or fewer is INVALID
 - grammarPoints has EXACTLY 2 items
 - grammarPoints[0].title exactly matches: "${grammarPlan[0].title}"
 - grammarPoints[1].title exactly matches: "${grammarPlan[1].title}"
