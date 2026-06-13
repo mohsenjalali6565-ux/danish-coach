@@ -1286,6 +1286,29 @@ If any check fails, fix it before returning.`;
           }
         }
 
+        // READING_QUESTIONS (second pass) — routes any reading.questions errors that
+        // surfaced from the second reading text repair re-validation above.
+        if (lastValidationError && lastValidationError.includes("reading.questions")) {
+          const repairedQuestions = await repairReadingQuestionsIfInvalid(
+            lesson,
+            day.topic,
+            day.level,
+            day.phase,
+            grammarPlan[0].title,
+            grammarPlan[1].title
+          );
+          if (repairedQuestions) {
+            (lesson.reading as Record<string, unknown>).questions = repairedQuestions;
+            const repairError = validateGeneratedLesson(
+              lesson,
+              grammarPlan[0].title,
+              grammarPlan[1].title,
+              minReadingWords
+            );
+            lastValidationError = repairError;
+          }
+        }
+
         if (lastValidationError) {
           if (attempt === MAX_ATTEMPTS) {
             return NextResponse.json(
