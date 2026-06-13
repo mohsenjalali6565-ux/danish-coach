@@ -259,6 +259,66 @@ function validateGeneratedLesson(
     }
   }
 
+  // Conversation grammar alignment — only enforced when both grammar items are present-focused.
+  const isPresentFocused =
+    [gp0Title, gp1Title].some((t) => /nutid|present tense/i.test(t)) &&
+    ![gp0Title, gp1Title].some((t) => /datid|past tense|perfect|førnutid/i.test(t));
+
+  if (isPresentFocused) {
+    const convArr = Array.isArray(lesson.conversation)
+      ? (lesson.conversation as Record<string, unknown>[])
+      : [];
+    const convDanish = convArr
+      .map((t) => (typeof t.danish === "string" ? t.danish.toLowerCase() : ""))
+      .join(" ");
+
+    if (!convDanish.trim()) {
+      return "conversation is missing or empty";
+    }
+
+    // Count strong past/perfect markers — allow at most 2.
+    const PAST_MARKERS = [
+      "har været", "startede", "lavede", "arbejdede", "gik",
+      "var", "havde", "tog", "spiste", "drak", "læste", "gjorde", "kom", "begyndte",
+    ];
+    let pastCount = 0;
+    for (const marker of PAST_MARKERS) {
+      let pos = 0;
+      while ((pos = convDanish.indexOf(marker, pos)) !== -1) {
+        pastCount++;
+        pos += marker.length;
+      }
+    }
+    if (pastCount > 2) {
+      return `conversation overuses past/perfect tense for a present-focused lesson (found ${pastCount} past/perfect markers; maximum 2 allowed)`;
+    }
+
+    // Require at least 5 present-tense routine verb occurrences.
+    const PRESENT_VERBS = [
+      "arbejder", "drikker", "læser", "laver", "går", "står", "spiser",
+      "tager", "ser", "slapper", "plejer", "sover", "vågner", "starter",
+      "kommer", "bruger", "cykler", "løber", "er", "har",
+    ];
+    let presentCount = 0;
+    for (const verb of PRESENT_VERBS) {
+      let pos = 0;
+      while ((pos = convDanish.indexOf(verb, pos)) !== -1) {
+        presentCount++;
+        pos += verb.length;
+      }
+    }
+    if (presentCount < 5) {
+      return `conversation lacks enough present-tense routine examples (found ${presentCount}; need at least 5)`;
+    }
+
+    // Require at least 2 V2/fronted-time patterns: [time phrase] + [verb ending in r].
+    const v2Re = /(om morgenen|om aftenen|om natten|om middagen|om formiddagen|om eftermiddagen|i weekenden|i morges|i aftes|derefter|først)\s+[a-zA-ZæøåÆØÅ]{2,}r/g;
+    const v2Matches = convDanish.match(v2Re) ?? [];
+    if (v2Matches.length < 2) {
+      return `conversation lacks V2/fronted-time examples (found ${v2Matches.length}; need at least 2)`;
+    }
+  }
+
   const reading = lesson.reading as Record<string, unknown> | undefined;
   if (!reading) return "reading is missing";
 
@@ -521,6 +581,74 @@ Hard rules:
 
     console.log(`[questions-repair] repaired: ${parsed.questions.length} questions`);
     return parsed.questions as unknown[];
+  } catch {
+    return null;
+  }
+}
+
+// ── Conversation repair ───────────────────────────────────────────────────────
+
+// Called only when validateGeneratedLesson returns a conversation alignment error.
+// Regenerates only the conversation array; preserves { speaker, danish, english, persian } shape.
+async function repairConversationIfMisaligned(
+  topic: string,
+  level: string,
+  phase: number,
+  gp0Title: string,
+  gp1Title: string
+): Promise<unknown[] | null> {
+  const minTurns = phase <= 1 ? 15 : phase <= 2 ? 25 : 30;
+  const convLinesStr = phase <= 1 ? "15 to 20" : phase <= 2 ? "25 to 30" : "30 to 40";
+
+  console.log(`[conversation-repair] triggered — regenerating conversation (min ${minTurns} turns)`);
+
+  const repairPrompt = `You are a Danish language teacher. Generate a natural A2+/B1 Danish conversation about daily routines.
+
+Lesson topic: ${topic}
+Level: ${level}
+Phase: ${phase} of 3
+Grammar item 1: "${gp0Title}"
+Grammar item 2: "${gp1Title}"
+
+Required:
+- Exactly ${convLinesStr} speaker turns alternating between Speaker A and Speaker B
+- Focus on PRESENT TENSE daily routines — what people DO regularly, not what they did in the past
+- Include at least 8–10 present-tense verbs such as: arbejder, drikker, læser, laver, går, står op, spiser, tager, ser, slapper af, plejer, vågner, starter, sover
+- Include at least 3 V2/fronted-time expressions where the verb comes before the subject:
+  • Om morgenen drikker jeg kaffe.
+  • Om aftenen læser jeg en bog.
+  • Først arbejder jeg, og så går jeg en tur.
+  • I weekenden besøger jeg min familie.
+  • Derefter spiser jeg morgenmad.
+- Use PRESENT TENSE (nutid) as the dominant tense — NOT past tense (datid) or perfect
+- Avoid these past-tense forms — at most 1 total: har været, startede, lavede, arbejdede, gik, var, havde, tog, spiste, drak, læste, gjorde, kom, begyndte
+- Keep it natural and realistic — two people talking about their daily lives
+- Include English (english) and Persian (persian) translations for every turn
+
+Output ONLY this JSON:
+{
+  "conversation": [
+    { "speaker": "A", "danish": "...", "english": "...", "persian": "..." },
+    { "speaker": "B", "danish": "...", "english": "...", "persian": "..." }
+  ]
+}`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: repairPrompt }],
+      max_tokens: 3000,
+    });
+
+    const raw = completion.choices[0].message.content;
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!Array.isArray(parsed.conversation) || parsed.conversation.length < minTurns) return null;
+
+    console.log(`[conversation-repair] repaired: ${parsed.conversation.length} turns`);
+    return parsed.conversation as unknown[];
   } catch {
     return null;
   }
@@ -1030,6 +1158,27 @@ If any check fails, fix it before returning.`;
           );
           if (repairedQuestions) {
             (lesson.reading as Record<string, unknown>).questions = repairedQuestions;
+            const repairError = validateGeneratedLesson(
+              lesson,
+              grammarPlan[0].title,
+              grammarPlan[1].title,
+              minReadingWords
+            );
+            lastValidationError = repairError;
+          }
+        }
+
+        // CONVERSATION_MISALIGNED — repair only conversation, no full regeneration.
+        if (lastValidationError && lastValidationError.includes("conversation")) {
+          const repairedConversation = await repairConversationIfMisaligned(
+            day.topic,
+            day.level,
+            day.phase,
+            grammarPlan[0].title,
+            grammarPlan[1].title
+          );
+          if (repairedConversation) {
+            lesson.conversation = repairedConversation;
             const repairError = validateGeneratedLesson(
               lesson,
               grammarPlan[0].title,
