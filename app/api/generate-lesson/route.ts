@@ -801,6 +801,7 @@ LANGUAGE RULES:
 - "persian" fields: set to empty string "".
 - "danish" fields: natural, authentic Danish at the specified level.
 - "english" fields: accurate English translations.
+- ALL support text, explanations, instructions, and pedagogical notes MUST be in English. This applies to: whyBetterForPD3, grammarAwarePracticeIdea, integrationNotes, commonMistake, use, formation, pattern descriptions, writingTask, and examStrategy. Danish is only permitted inside target language sentences, Danish vocabulary words, Danish reading text, Danish conversation lines, and Danish example sentences shown inside quotes within an otherwise English explanation.
 
 CONTENT VOLUME — HARD REQUIREMENTS. Never go below these numbers. Count before finalizing:
 - conversation: MINIMUM ${convLines} speaker turns. Count them. If fewer, add more.
@@ -885,10 +886,10 @@ GRAMMAR DEEP DIVE — Must:
   9. "examples": at least 4 natural, complete Danish example sentences
   10. "commonMistake": a typical learner error, with the incorrect form, the correct form, and a brief explanation
   11. "pdUpgradeExample": { "simple": <basic B1 sentence>, "upgraded": <PD3-quality version using this grammar more sophisticatedly> }
-  12. "whyBetterForPD3": one Danish sentence explaining why the upgraded version is better for PD3
-  13. "appliedExample": one sentence applying this grammar to today's writing task topic
-  14. "grammarAwarePracticeIdea": a short reading question or exercise idea that tests this grammar in context — something a learner can practise immediately
-  15. "integrationNotes": how this grammar connects to today's lesson topic, writing task, and reading
+  12. "whyBetterForPD3": one English sentence explaining why the upgraded version is better for PD3 (e.g. "The upgraded version uses subordination and fronting that examiners reward at PD3 level.")
+  13. "appliedExample": one Danish example sentence applying this grammar to today's writing task topic
+  14. "grammarAwarePracticeIdea": write in English — a short exercise idea that tests this grammar, something a learner can practise immediately. May include a short Danish example sentence inside quotes. Example: "Find the present-tense verbs in the reading text." or "Rewrite this sentence with correct V2 word order: 'Om morgenen jeg drikker kaffe.'"
+  15. "integrationNotes": write in English — explain how this grammar connects to today's lesson topic, writing task, and reading
 - Grammar must connect to today's reading question types and writing format.
 
 LESSON INTEGRATION — 50–70% of the lesson must reinforce the two grammarPlan items:
@@ -1028,10 +1029,10 @@ Return this exact JSON structure (fill every field with real content):
       "examples": ["<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>"],
       "commonMistake": "<typical learner error with incorrect form, correct form, and explanation>",
       "pdUpgradeExample": { "simple": "<basic B1 sentence>", "upgraded": "<PD3-quality version>" },
-      "whyBetterForPD3": "<one Danish sentence explaining why the upgraded version is better>",
-      "appliedExample": "<one sentence applying this grammar to today's writing task topic>",
-      "grammarAwarePracticeIdea": "<a short reading question or exercise idea that tests this grammar>",
-      "integrationNotes": "<how this grammar connects to today's topic, writing, and reading>"
+      "whyBetterForPD3": "<one English sentence explaining why the upgraded version is better for PD3>",
+      "appliedExample": "<one Danish example sentence applying this grammar to today's writing task topic>",
+      "grammarAwarePracticeIdea": "<in English: a short exercise idea testing this grammar — may include a Danish example in quotes>",
+      "integrationNotes": "<in English: how this grammar connects to today's topic, writing, and reading>"
     },
     {
       "title": "<MUST exactly match: ${grammarPlan[1].title}>",
@@ -1045,10 +1046,10 @@ Return this exact JSON structure (fill every field with real content):
       "examples": ["<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>"],
       "commonMistake": "<typical learner error with incorrect form, correct form, and explanation>",
       "pdUpgradeExample": { "simple": "<basic B1 sentence>", "upgraded": "<PD3-quality version>" },
-      "whyBetterForPD3": "<one Danish sentence explaining why the upgraded version is better>",
-      "appliedExample": "<one sentence applying this grammar to today's writing task topic>",
-      "grammarAwarePracticeIdea": "<a short reading question or exercise idea that tests this grammar>",
-      "integrationNotes": "<how this grammar connects to today's topic, writing, and reading>"
+      "whyBetterForPD3": "<one English sentence explaining why the upgraded version is better for PD3>",
+      "appliedExample": "<one Danish example sentence applying this grammar to today's writing task topic>",
+      "grammarAwarePracticeIdea": "<in English: a short exercise idea testing this grammar — may include a Danish example in quotes>",
+      "integrationNotes": "<in English: how this grammar connects to today's topic, writing, and reading>"
     }
   ],
   "vocabulary": [
