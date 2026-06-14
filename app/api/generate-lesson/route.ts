@@ -6,6 +6,8 @@ export const maxDuration = 120;
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const LESSON_GENERATION_MODEL = process.env.LESSON_GENERATION_MODEL || "gpt-5.4";
+
 // ── Progressive difficulty helpers ──────────────────────────────────────────
 
 function getQuestionCount(day: number): number {
@@ -473,7 +475,7 @@ Rules:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: LESSON_GENERATION_MODEL,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: repairPrompt }],
       max_tokens: 2000,
@@ -556,7 +558,7 @@ Hard rules:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: LESSON_GENERATION_MODEL,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: repairPrompt }],
       max_tokens: 2000,
@@ -617,7 +619,7 @@ Output ONLY this JSON:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: LESSON_GENERATION_MODEL,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: repairPrompt }],
       max_tokens: 1500,
@@ -685,7 +687,7 @@ Output ONLY this JSON:
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: LESSON_GENERATION_MODEL,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: repairPrompt }],
       max_tokens: 3000,
@@ -1137,7 +1139,7 @@ If any check fails, fix it before returning.`;
       }
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: LESSON_GENERATION_MODEL,
         response_format: { type: "json_object" },
         messages,
         max_tokens: 16000,
