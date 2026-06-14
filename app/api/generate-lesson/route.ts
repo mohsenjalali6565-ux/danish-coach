@@ -478,7 +478,7 @@ Rules:
       model: LESSON_GENERATION_MODEL,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: repairPrompt }],
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     });
 
     const raw = completion.choices[0].message.content;
@@ -561,7 +561,7 @@ Hard rules:
       model: LESSON_GENERATION_MODEL,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: repairPrompt }],
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     });
 
     const raw = completion.choices[0].message.content;
@@ -622,7 +622,7 @@ Output ONLY this JSON:
       model: LESSON_GENERATION_MODEL,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: repairPrompt }],
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
     });
 
     const raw = completion.choices[0].message.content;
@@ -690,7 +690,7 @@ Output ONLY this JSON:
       model: LESSON_GENERATION_MODEL,
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: repairPrompt }],
-      max_tokens: 3000,
+      max_completion_tokens: 3000,
     });
 
     const raw = completion.choices[0].message.content;
@@ -1142,7 +1142,7 @@ If any check fails, fix it before returning.`;
         model: LESSON_GENERATION_MODEL,
         response_format: { type: "json_object" },
         messages,
-        max_tokens: 16000,
+        max_completion_tokens: 16000,
       });
 
       const raw = completion.choices[0].message.content;
