@@ -206,13 +206,6 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
                     <SpeakButton text={line.danish} title="Listen to Danish" />
                   </div>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{line.english}</p>
-                  <p
-                    className="text-sm text-zinc-500 dark:text-zinc-400 mt-1"
-                    dir="rtl"
-                    lang="fa"
-                  >
-                    {line.persian}
-                  </p>
                 </div>
               </div>
             </div>
@@ -235,11 +228,7 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
         {sectionTitle(phase, "🎯", "PD3 Tip of the Day")}
         <div className="rounded-2xl bg-indigo-50 dark:bg-indigo-950/20 ring-1 ring-indigo-200 dark:ring-indigo-800 px-5 py-5 shadow-sm">
           {lesson.examStrategy ? (
-            <p
-              className="text-sm leading-8 text-zinc-700 dark:text-zinc-300 whitespace-pre-line"
-              dir="rtl"
-              lang="fa"
-            >
+            <p className="text-sm leading-8 text-zinc-700 dark:text-zinc-300 whitespace-pre-line">
               {lesson.examStrategy}
             </p>
           ) : (
@@ -261,9 +250,6 @@ function LessonContent({ lesson, phase }: { lesson: Lesson; phase: number }) {
                 <SpeakButton text={ks.danish} title="Listen to Danish" />
               </div>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{ks.english}</p>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1" dir="rtl" lang="fa">
-                {ks.persian}
-              </p>
             </div>
           ))}
         </div>
@@ -504,14 +490,10 @@ function GrammarCard({ gp }: { gp: GrammarPoint }) {
           </div>
         )}
 
-        {/* Persian explanation */}
+        {/* Explanation */}
         <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-4 py-3">
-          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 uppercase tracking-wide" dir="rtl" lang="fa">توضیح</p>
-          <p
-            className="text-sm text-zinc-700 dark:text-zinc-300"
-            dir="rtl"
-            lang="fa"
-          >
+          <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2 uppercase tracking-wide">Explanation</p>
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
             {gp.explanationPersian}
           </p>
         </div>
@@ -616,7 +598,7 @@ function VocabCard({ item }: { item: VocabularyItem }) {
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 items-baseline flex-1">
           <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{item.danish}</span>
           <span className="text-sm text-zinc-500 dark:text-zinc-400">{item.english}</span>
-          <span className="text-sm text-zinc-500 dark:text-zinc-400" dir="rtl" lang="fa">{item.persian}</span>
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">{item.persian}</span>
         </div>
         <SpeakButton text={item.danish} title="Listen to word" />
       </div>
@@ -797,13 +779,9 @@ function PracticeResult({ result, dayNumber }: { result: WritingCorrection; dayN
         </p>
       </div>
       <div className={INNER}>
-        <p className={LABEL} dir="rtl" lang="fa">توضیح</p>
+        <p className={LABEL}>Explanation</p>
         <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-4 py-3">
-          <p
-            className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap"
-            dir="rtl"
-            lang="fa"
-          >
+          <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
             {result.explanationPersian}
           </p>
         </div>
@@ -1043,14 +1021,10 @@ function ExamQuestionCard({ q, index }: { q: ExamQuestion; index: number }) {
             </div>
             {q.explanationPersian && (
               <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/60 px-3 py-2.5">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1 uppercase tracking-wide" dir="rtl" lang="fa">
-                  توضیح
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1 uppercase tracking-wide">
+                  Explanation
                 </p>
-                <p
-                  className="text-sm text-zinc-700 dark:text-zinc-300"
-                  dir="rtl"
-                  lang="fa"
-                >
+                <p className="text-sm text-zinc-700 dark:text-zinc-300">
                   {q.explanationPersian}
                 </p>
               </div>

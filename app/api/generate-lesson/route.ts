@@ -605,7 +605,7 @@ Lesson vocabulary words (for context): ${vocab || "see lesson content"}
 Rules — every card MUST follow ALL of these:
 - "front" must be exactly ONE Danish word — no spaces, no hyphens, no phrases
 - "type" must be "word" for every card
-- "back" must include English meaning + Persian meaning + optionally one short correct Danish example sentence
+- "back" must include English meaning + optionally one short correct Danish example sentence
 - Danish compound words written as one word are allowed: morgenmad, sengetid, hverdag, mulighed, etc.
 - Do NOT generate: sentences, phrases, collocations, connectors (og, men, så), grammar titles, correction exercises
 - Do NOT generate common function words: og, men, så, jeg, du, vi, er, har, om, i, på, den, det, de, en, et
@@ -614,7 +614,7 @@ Rules — every card MUST follow ALL of these:
 
 Output ONLY this JSON:
 { "suggestedFlashcards": [
-  { "front": "<one Danish word>", "back": "<English + Persian + optional short example>", "type": "word" }
+  { "front": "<one Danish word>", "back": "<English meaning + optional short example>", "type": "word" }
 ] }`;
 
   try {
@@ -675,13 +675,13 @@ Required:
 - Use PRESENT TENSE (nutid) as the dominant tense — NOT past tense (datid) or perfect
 - Avoid these past-tense forms — at most 1 total: har været, startede, lavede, arbejdede, gik, var, havde, tog, spiste, drak, læste, gjorde, kom, begyndte
 - Keep it natural and realistic — two people talking about their daily lives
-- Include English (english) and Persian (persian) translations for every turn
+- Include English (english) translation for every turn. Set the persian field to "".
 
 Output ONLY this JSON:
 {
   "conversation": [
-    { "speaker": "A", "danish": "...", "english": "...", "persian": "..." },
-    { "speaker": "B", "danish": "...", "english": "...", "persian": "..." }
+    { "speaker": "A", "danish": "...", "english": "...", "persian": "" },
+    { "speaker": "B", "danish": "...", "english": "...", "persian": "" }
   ]
 }`;
 
@@ -792,13 +792,13 @@ Grammar Item 2:
     : "";
   const writingFormatBlock = day.writingFormat ? `Writing Format: ${day.writingFormat}` : "";
 
-  const systemPrompt = `You are an expert Danish language teacher creating comprehensive, high-quality lessons for Persian-speaking students. The student is learning Danish from A2+/B1 toward B2 and the PD3 exam.
+  const systemPrompt = `You are an expert Danish language teacher creating comprehensive, high-quality lessons for English-speaking students. The student is learning Danish from A2+/B1 toward B2 and the PD3 exam.
 
 You must return a single valid JSON object with no markdown, no code fences, no extra text — only the JSON.
 
 LANGUAGE RULES:
-- "explanationPersian" fields: MUST be written entirely in Persian (فارسی). Write at least 4–5 sentences of clear, pedagogically detailed grammatical explanation in Persian.
-- "persian" fields: MUST be natural, idiomatic Persian — not word-for-word translations.
+- "explanationPersian" fields: MUST be written entirely in English. Write at least 4–5 sentences of clear, pedagogically detailed grammatical explanation.
+- "persian" fields: set to empty string "".
 - "danish" fields: natural, authentic Danish at the specified level.
 - "english" fields: accurate English translations.
 
@@ -812,11 +812,11 @@ CONTENT VOLUME — HARD REQUIREMENTS. Never go below these numbers. Count before
 - reading.questions: MINIMUM 8 items. Target 10. Count them. If fewer than 8, add more.
 - suggestedFlashcards: 12–18 word-only vocabulary cards (type "word", single Danish words only). Count them. If fewer than 12, add more.
 - readingExamPractice.questions: EXACTLY ${questionCount} questions. This is a hard requirement for Day ${dayNumber}. Count them. Add or remove questions to reach exactly ${questionCount}.
-- examStrategy (PD3 Tip of the Day): 60–90 words in Persian. Must have exactly 3 labeled sections. Maximum 100 words.
+- examStrategy (PD3 Tip of the Day): 60–90 words in English. Must have exactly 3 labeled sections. Maximum 100 words.
 
 QUALITY:
 - Conversation must feel realistic, not like a scripted drill. The topic should arise naturally.
-- Grammar explanations in Persian must be thorough and pedagogically clear with correct Danish terminology.
+- Grammar explanations must be thorough and pedagogically clear with correct Danish terminology.
 - Vocabulary examples must be complete, natural sentences using the word in context.
 - Reading text must be engaging and appropriate to the topic and level.
 - Flashcard fronts are Danish; backs are English (or the reverse for grammar cards where front is the grammar label).
@@ -872,18 +872,18 @@ GRAMMAR DEEP DIVE — Must:
 - grammarPoints[0].title MUST exactly match: "${grammarPlan[0].title}"
 - grammarPoints[1].title MUST exactly match: "${grammarPlan[1].title}"
 - Teach each item deeply. Use the mustTeach list as your minimum coverage requirement.
-- The explanation must be in Persian (4–5 sentences, pedagogically detailed).
+- The explanation must be in English (4–5 sentences, pedagogically detailed).
 - Each grammar point MUST include ALL of the following fields:
   1. "title": the EXACT title from grammarPlan — do not alter, shorten, or rephrase
   2. "focus": the focus area from grammarPlan
   3. "level": the CEFR level from grammarPlan
   4. "mustTeach": array — cover every item listed in the grammarPlan mustTeach list
-  5. "explanationPersian": Persian explanation — 4–5 sentences, covering formation, use, and what distinguishes this from similar forms
+  5. "explanationPersian": English explanation — 4–5 sentences, covering formation, use, and what distinguishes this from similar forms
   6. "pattern": the grammatical pattern formula
   7. "formation": how the form is built step by step (e.g. verb stem + ending, auxiliary + past participle)
   8. "use": when and why this grammar form is used — contexts, registers, distinctions from similar structures
   9. "examples": at least 4 natural, complete Danish example sentences
-  10. "commonMistake": a typical error made by Persian speakers, with the incorrect form, the correct form, and a brief explanation
+  10. "commonMistake": a typical learner error, with the incorrect form, the correct form, and a brief explanation
   11. "pdUpgradeExample": { "simple": <basic B1 sentence>, "upgraded": <PD3-quality version using this grammar more sophisticatedly> }
   12. "whyBetterForPD3": one Danish sentence explaining why the upgraded version is better for PD3
   13. "appliedExample": one sentence applying this grammar to today's writing task topic
@@ -953,16 +953,16 @@ SUGGESTED FLASHCARDS — Must produce 12–18 word-only vocabulary cards:
 - Do NOT generate common function words: og, men, så, jeg, du, vi, er, har, om, i, på, den, det, de, en, et, at, til, af, fra, med.
 - Prefer genuinely useful, new, or difficult words from the lesson vocabulary, reading text, and conversation.
 - Prefer lemmas/base forms where relevant (e.g. "fleksibel" not "fleksibelt").
-- The back must include: English meaning + Persian meaning + optionally one short correct Danish example sentence.
+- The back must include: English meaning + optionally one short correct Danish example sentence.
 
 GOOD examples (ALLOWED):
-- { "front": "fleksibel", "back": "flexible (انعطاف‌پذیر) — Han har en fleksibel arbejdsdag.", "type": "word" }
-- { "front": "sædvanlig", "back": "usual, ordinary (معمولی)", "type": "word" }
-- { "front": "sengetid", "back": "bedtime (وقت خواب)", "type": "word" }
-- { "front": "mulighed", "back": "opportunity, possibility (امکان)", "type": "word" }
-- { "front": "afslapning", "back": "relaxation (آرامش)", "type": "word" }
-- { "front": "frokost", "back": "lunch (ناهار)", "type": "word" }
-- { "front": "morgenmad", "back": "breakfast (صبحانه)", "type": "word" }
+- { "front": "fleksibel", "back": "flexible — Han har en fleksibel arbejdsdag.", "type": "word" }
+- { "front": "sædvanlig", "back": "usual, ordinary", "type": "word" }
+- { "front": "sengetid", "back": "bedtime", "type": "word" }
+- { "front": "mulighed", "back": "opportunity, possibility", "type": "word" }
+- { "front": "afslapning", "back": "relaxation", "type": "word" }
+- { "front": "frokost", "back": "lunch", "type": "word" }
+- { "front": "morgenmad", "back": "breakfast", "type": "word" }
 
 BAD examples (FORBIDDEN — will be rejected):
 - { "front": "For at holde mig frisk, jeg løber hver morgen.", ... } — SENTENCE, FORBIDDEN
@@ -973,12 +973,12 @@ BAD examples (FORBIDDEN — will be rejected):
 - { "front": "og", ... } — FUNCTION WORD, FORBIDDEN
 
 PD3 TIP OF THE DAY — Must produce a dedicated examStrategy field:
-- Write entirely in Persian (فارسی).
+- Write entirely in English.
 - Target 60–90 words. Maximum 100 words.
 - Must have EXACTLY THREE labeled sections in this order:
-  نکته عملی: [one practical tip specific to today's question type or writing task — be specific to Day ${dayNumber}]
-  مثال کوتاه: [one short Danish example sentence directly illustrating the tip]
-  تکنیک آزمون: [one PD3 exam technique relevant to today's text type: ${day.textType ?? "reading/writing task"}]
+  Practical Tip: [one practical tip specific to today's question type or writing task — be specific to Day ${dayNumber}]
+  Short Example: [one short Danish example sentence directly illustrating the tip]
+  Exam Technique: [one PD3 exam technique relevant to today's text type: ${day.textType ?? "reading/writing task"}]
 - No verbose general explanations. No repeating advice from other days. Be concise and specific.
 
 READING EXAM PRACTICE — Must produce exactly ${questionCount} questions (hard requirement for Day ${dayNumber}):
@@ -986,7 +986,7 @@ READING EXAM PRACTICE — Must produce exactly ${questionCount} questions (hard 
 - ALLOWED QUESTION TYPES for Day ${dayNumber}: ${allowedTypes}
 - ${requiredTypeMix}
 - true_false is FORBIDDEN. Never output a question with type "true_false" or "true/false".
-- Every question must have: type, instruction, correctAnswer (never empty), and explanationPersian (in Persian, minimum 2 sentences explaining why the answer is correct).
+- Every question must have: type, instruction, correctAnswer (never empty), and explanationPersian (in English, minimum 2 sentences explaining why the answer is correct).
 - Per-type required fields — follow exactly:
   - short_answer: { type, instruction, question, correctAnswer, explanationPersian }
   - multiple_choice: { type, instruction, question, options (array of exactly 4 strings, each prefixed "A. "/"B. "/"C. "/"D. "), correctAnswer (single letter, e.g. "B"), explanationPersian }
@@ -1009,11 +1009,11 @@ Return this exact JSON structure (fill every field with real content):
   "level": "${day.level}",
   "topic": "${day.topic}",
   "conversation": [
-    { "speaker": "A", "danish": "...", "english": "...", "persian": "..." },
-    { "speaker": "B", "danish": "...", "english": "...", "persian": "..." }
+    { "speaker": "A", "danish": "...", "english": "...", "persian": "" },
+    { "speaker": "B", "danish": "...", "english": "...", "persian": "" }
   ],
   "keySentences": [
-    { "danish": "...", "english": "...", "persian": "..." }
+    { "danish": "...", "english": "...", "persian": "" }
   ],
   "grammarPoints": [
     {
@@ -1021,12 +1021,12 @@ Return this exact JSON structure (fill every field with real content):
       "focus": "${grammarPlan[0].focus}",
       "level": "${grammarPlan[0].level}",
       "mustTeach": ["<point from mustTeach list>", "..."],
-      "explanationPersian": "<4–5 sentences in Persian — pedagogically detailed, covering formation, use, and what distinguishes this grammar>",
+      "explanationPersian": "<4–5 sentences in English — pedagogically detailed, covering formation, use, and what distinguishes this grammar>",
       "pattern": "<grammatical pattern formula>",
       "formation": "<step-by-step formation: how the form is built>",
       "use": "<when and why this form is used — contexts and registers>",
       "examples": ["<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>"],
-      "commonMistake": "<typical Persian-speaker error with incorrect form, correct form, and explanation>",
+      "commonMistake": "<typical learner error with incorrect form, correct form, and explanation>",
       "pdUpgradeExample": { "simple": "<basic B1 sentence>", "upgraded": "<PD3-quality version>" },
       "whyBetterForPD3": "<one Danish sentence explaining why the upgraded version is better>",
       "appliedExample": "<one sentence applying this grammar to today's writing task topic>",
@@ -1038,12 +1038,12 @@ Return this exact JSON structure (fill every field with real content):
       "focus": "${grammarPlan[1].focus}",
       "level": "${grammarPlan[1].level}",
       "mustTeach": ["<point from mustTeach list>", "..."],
-      "explanationPersian": "<4–5 sentences in Persian — pedagogically detailed, covering formation, use, and what distinguishes this grammar>",
+      "explanationPersian": "<4–5 sentences in English — pedagogically detailed, covering formation, use, and what distinguishes this grammar>",
       "pattern": "<grammatical pattern formula>",
       "formation": "<step-by-step formation: how the form is built>",
       "use": "<when and why this form is used — contexts and registers>",
       "examples": ["<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>", "<natural Danish sentence>"],
-      "commonMistake": "<typical Persian-speaker error with incorrect form, correct form, and explanation>",
+      "commonMistake": "<typical learner error with incorrect form, correct form, and explanation>",
       "pdUpgradeExample": { "simple": "<basic B1 sentence>", "upgraded": "<PD3-quality version>" },
       "whyBetterForPD3": "<one Danish sentence explaining why the upgraded version is better>",
       "appliedExample": "<one sentence applying this grammar to today's writing task topic>",
@@ -1052,7 +1052,7 @@ Return this exact JSON structure (fill every field with real content):
     }
   ],
   "vocabulary": [
-    { "danish": "...", "english": "...", "persian": "...", "example": "<full Danish sentence using this word>", "category": "word|phrase|collocation|connector" }
+    { "danish": "...", "english": "...", "persian": "", "example": "<full Danish sentence using this word>", "category": "word|phrase|collocation|connector" }
   ],
   "reading": {
     "title": "...",
@@ -1062,7 +1062,7 @@ Return this exact JSON structure (fill every field with real content):
     ]
   },
   "writingTask": "<full structured writing instruction requiring use of ${grammarPlan[0].title} and ${grammarPlan[1].title}>",
-  "examStrategy": "<PD3 Tip of the Day in Persian — 60–90 words — exactly 3 labeled sections: نکته عملی / مثال کوتاه / تکنیک آزمون>",
+  "examStrategy": "<PD3 Tip of the Day in English — 60–90 words — exactly 3 labeled sections: Practical Tip / Short Example / Exam Technique>",
   "readingExamPractice": {
     "title": "<Danish title, e.g. 'PD3 Læseforståelse — Eksamensøvelse'>",
     "questions": [
@@ -1076,12 +1076,12 @@ Return this exact JSON structure (fill every field with real content):
         "gappedParagraph": "<paragraph with [___] marker — gapped_text only>",
         "missingSentenceOptions": ["A. ...", "B. ...", "C. ...", "D. ..."],
         "correctAnswer": "<the correct answer>",
-        "explanationPersian": "<explanation in Persian: why this answer is correct, minimum 2 sentences>"
+        "explanationPersian": "<explanation in English: why this answer is correct, minimum 2 sentences>"
       }
     ]
   },
   "suggestedFlashcards": [
-    { "front": "<single Danish word>", "back": "<English meaning + Persian meaning + optionally one short Danish example>", "type": "word" }
+    { "front": "<single Danish word>", "back": "<English meaning + optionally one short Danish example>", "type": "word" }
   ]
 }
 
@@ -1095,7 +1095,7 @@ Return this exact JSON structure (fill every field with real content):
 - grammarPoints[0].title exactly matches: "${grammarPlan[0].title}"
 - grammarPoints[1].title exactly matches: "${grammarPlan[1].title}"
 - Every grammarPoint has ALL required fields: title, focus, level, mustTeach, explanationPersian, pattern, formation, use, examples, commonMistake, pdUpgradeExample, whyBetterForPD3, appliedExample, grammarAwarePracticeIdea, integrationNotes
-- examStrategy has exactly 3 Persian sections: نکته عملی, مثال کوتاه, تکنیک آزمون — and is 60–90 words
+- examStrategy has exactly 3 English sections: Practical Tip, Short Example, Exam Technique — and is 60–90 words
 - conversation has at least ${convLines.split(" ")[0]} turns
 - keySentences has at least 15 items
 - vocabulary has at least 15 items, with at least 6 phrases/collocations/connectors
@@ -1116,7 +1116,7 @@ Return this exact JSON structure (fill every field with real content):
 - every suggestedFlashcard front is a SINGLE Danish word — no spaces, no hyphens, no punctuation
 - no suggestedFlashcard front is a phrase, sentence, collocation, connector, or grammar title
 - no suggestedFlashcard front is a common function word (og, men, så, jeg, du, vi, er, har, om, i, på)
-- all flashcard backs are non-empty and include English + Persian meanings
+- all flashcard backs are non-empty and include English meaning
 If any check fails, fix it before returning.`;
 
   const MAX_ATTEMPTS = 2;

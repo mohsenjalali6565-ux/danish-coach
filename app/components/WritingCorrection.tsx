@@ -52,7 +52,7 @@ export default function WritingCorrection() {
   const placeholder =
     mode === "correct"
       ? "Skriv din danske tekst her…"
-      : "اینجا به فارسی یا انگلیسی بنویسید…";
+      : "Write your thoughts in English here…";
 
   const buttonLabel =
     mode === "correct" ? "Correct My Writing" : "Translate to Danish";
@@ -80,8 +80,8 @@ export default function WritingCorrection() {
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Writing Assistant Pro</h1>
           <p className="mt-1 text-sm text-zinc-400 dark:text-zinc-500">
             {mode === "correct"
-              ? "Write Danish text and get instant correction and explanation in Persian."
-              : "Write your thoughts in Persian or English and get a Danish translation with explanation."}
+              ? "Write Danish text and get instant correction and explanation in English."
+              : "Write your thoughts in English and get a Danish translation with explanation."}
           </p>
         </div>
 
@@ -172,15 +172,11 @@ function CorrectionResult({ result, mode }: { result: WCResult; mode: Mode }) {
         </div>
       </div>
 
-      {/* Persian explanation */}
+      {/* Explanation */}
       <div className={SECTION}>
-        <p className={SECTION_TITLE}>توضیح</p>
+        <p className={SECTION_TITLE}>Explanation</p>
         <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 ring-1 ring-amber-100 dark:ring-amber-900/60 px-5 py-4">
-          <p
-            className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap"
-            dir="rtl"
-            lang="fa"
-          >
+          <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
             {result.explanationPersian}
           </p>
         </div>
